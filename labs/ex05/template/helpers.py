@@ -1,23 +1,11 @@
 # -*- coding: utf-8 -*-
 """some helper functions."""
-
 import numpy as np
-import os
-
-def load_data():
-    """load data."""
-    current_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),"dataEx3.csv")
-    data = np.loadtxt(current_path, delimiter=",", skiprows=1, unpack=True)
-    x = data[0]
-    y = data[1]
-    return x, y
 
 
-def load_data_from_ex02(sub_sample=True, add_outlier=False):
+def load_data(sub_sample=True, add_outlier=False):
     """Load data and convert it to the metric system."""
-    current_path = os.path.dirname(os.path.realpath(__file__))
-    print(current_path)
-    path_dataset = os.path.join(current_path,"height_weight_genders.csv")
+    path_dataset = "height_weight_genders.csv"
     data = np.genfromtxt(
         path_dataset, delimiter=",", skip_header=1, usecols=[1, 2])
     height = data[:, 0]
@@ -28,27 +16,33 @@ def load_data_from_ex02(sub_sample=True, add_outlier=False):
     # Convert to metric system
     height *= 0.025
     weight *= 0.454
-
-    # sub-sample
-    if sub_sample:
-        height = height[::50]
-        weight = weight[::50]
-
-    if add_outlier:
-        # outlier experiment
-        height = np.concatenate([height, [1.1, 1.2]])
-        weight = np.concatenate([weight, [51.5/0.454, 55.3/0.454]])
-
     return height, weight, gender
+
+
+def sample_data(y, x, seed, size_samples):
+    """sample from dataset."""
+    np.random.seed(seed)
+    num_observations = y.shape[0]
+    random_permuted_indices = np.random.permutation(num_observations)
+    y = y[random_permuted_indices]
+    x = x[random_permuted_indices]
+    return y[:size_samples], x[:size_samples]
 
 
 def standardize(x):
     """Standardize the original data set."""
-    mean_x = np.mean(x)
+    mean_x = np.mean(x, axis=0)
     x = x - mean_x
-    std_x = np.std(x)
+    std_x = np.std(x, axis=0)
     x = x / std_x
     return x, mean_x, std_x
+
+
+def de_standardize(x, mean_x, std_x):
+    """Reverse the procedure of standardization."""
+    x = x * std_x
+    x = x + mean_x
+    return x
 
 
 def build_model_data(height, weight):

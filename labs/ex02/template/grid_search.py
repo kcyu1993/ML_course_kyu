@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Problem Sheet 2.
+"""Exercise 2.
 
 Grid Search
 """
 
 import numpy as np
-import costs
+# import costs
 
 
 def generate_w(num_intervals):
@@ -23,6 +23,6 @@ def get_best_parameters(w0, w1, losses):
 
 # ***************************************************
 # INSERT YOUR CODE HERE
-# TODO: Paste your implementation of grid_search
+# TODO: Paste your implementation of grid_search 
 #       here when it is done.
 # ***************************************************

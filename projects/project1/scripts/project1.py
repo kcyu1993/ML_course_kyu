@@ -1,0 +1,87 @@
+from __future__ import absolute_import
+
+# Useful starting lines
+# %matplotlib inline
+import numpy as np
+import matplotlib.pyplot as plt
+# %load_ext autoreload
+# %autoreload 2
+
+from projects.project1.scripts.proj1_helpers import *
+from projects.project1.scripts.helpers import *
+from projects.project1.scripts.learning_model import *
+from projects.project1.scripts.data_clean import *
+from .model import *
+import os, datetime
+
+
+def test_Model():
+    y, x, _ = load_train_data()
+    # tr_x, tr_y, te_x, te_y = split_data(y, x, ratio=0.7, seed=6)
+    # lin_model = LinearRegression([tr_y, tr_x], validation=[te_y, te_x])
+    x = standardize(x)
+    lin_model = LinearRegression([y, x[0]])
+    # lin_model = LogisticRegressionSK([y, x[0]])
+    lin_model.train()
+
+test_Model()
+
+def test1():
+    data_dir = get_dataset_dir()
+    train_path = os.path.join(data_dir, 'train.csv')
+    print(data_dir)
+
+    DATA_TRAIN_PATH = train_path #download train data and supply path here
+    y, tX, ids = load_csv_data(DATA_TRAIN_PATH)
+
+    print(len(y))
+    # data clean
+    tx_clean = remove_outlier(tX)
+
+
+    ''' Machien learning stuff here '''
+
+    '''
+    Potential ways to improve the results?
+        Apply momentum and decays to SGD?
+        Adaptive learning rate when the error plateaus
+    '''
+    losses, weights = least_squares_SGD(y[tx_clean,], tX[tx_clean,:], 0.1, 10)
+
+
+    test_path = os.path.join(data_dir, 'test.csv')
+    DATA_TEST_PATH = test_path # TODO: download train data and supply path here
+    _, tX_test, ids_test = load_csv_data(DATA_TEST_PATH)
+
+
+    OUTPUT_PATH = os.path.join(data_dir, 'output.csv') # TODO: fill in desired name of output file for submission
+    y_pred = predict_labels(weights[-1], tX_test)
+    create_csv_submission(ids_test, y_pred, OUTPUT_PATH)
+
+    # create_csv_submission(ids_test, y_pred, 'output1')
+
+# test1()
+
+def test_lsq_sgd_with_cleand_data():
+    b_time = datetime.datetime.now()
+    print('Begining reading data')
+    data_dir = get_dataset_dir()
+    train_path = os.path.join(data_dir, 'cleaned_train.csv')
+    DATA_TRAIN_PATH = train_path  # download train data and supply path here
+    y, tX, ids = load_csv_data(DATA_TRAIN_PATH)
+    print("Finish loading in {s} seconds".
+          format(s=(datetime.datetime.now()-b_time).total_seconds()))
+    tX = standardize(tX)
+    # Begin the least square sgd
+    e_time = datetime.datetime.now()
+    print("Finish data reading in {s} seconds".
+          format(s=(e_time-b_time).total_seconds()))
+    losses, weights = least_squares_SGD(y, tX[0],
+                                        gamma=0.1, max_iters=10, batch_size=16)
+    print(losses)
+
+# test_lsq_sgd_with_cleand_data()
+
+
+
+

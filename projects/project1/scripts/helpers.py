@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """some helper functions."""
 import numpy as np
+import os
 
 def standardize(x, mean_x=None, std_x=None):
     """Standardize the original data set."""
@@ -44,3 +45,57 @@ def batch_iter(y, tx, batch_size, num_batches=None, shuffle=True):
         end_index = min((batch_num + 1) * batch_size, data_size)
         if start_index != end_index:
             yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
+
+
+def build_poly(x, degree):
+    """polynomial basis functions for input data x, for j=0 up to j=degree."""
+    # ***************************************************
+    # INSERT YOUR CODE HERE
+    # polynomial basis function:
+    # this function should return the matrix formed
+    # by applying the polynomial basis to the input data
+    # ***************************************************
+    x = np.array(x)  # to make it safe.
+    _x = np.ones((x.shape[0], degree + 1))
+    for i in range(degree):
+        _x[:, i + 1:degree + 1] *= x[:, np.newaxis]
+    return _x
+
+def split_data(x, y, ratio, seed=1):
+    """split the dataset based on the split ratio."""
+    # set seed
+    np.random.seed(seed)
+    # ***************************************************
+    # INSERT YOUR CODE HERE
+    # split the data based on the given ratio:
+    # ***************************************************
+    # Random shuffle the index by enumerate.
+    pair = np.c_[x,y]
+    np.random.shuffle(pair)
+    index = np.round(x.size * ratio, 0).astype('int16')
+    p1, p2 = np.split(pair, [index])
+    x1, y1 = zip(*p1)
+    x2, y2 = zip(*p2)
+    return x1, y1, x2, y2
+
+# def split_data_general(*args, ratio=0.5, seed=1):
+#     np.random.seed(seed=seed)
+#     split_pos = int(ratio * len(args[0]))
+#     index = np.random.permutation(range(len(args[0])))
+
+
+def get_dataset_dir():
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    current_dir, _ = os.path.split(current_dir)
+    # data_dir = os.path.join('..', current_dir)
+    return os.path.join(current_dir, 'dataset')
+
+def build_k_indices(y, k_fold, seed):
+    """build k indices for k-fold."""
+    num_row = y.shape[0]
+    interval = int(num_row / k_fold)
+    np.random.seed(seed)
+    indices = np.random.permutation(num_row)
+    k_indices = [indices[k * interval: (k + 1) * interval]
+                 for k in range(k_fold)]
+    return np.array(k_indices)

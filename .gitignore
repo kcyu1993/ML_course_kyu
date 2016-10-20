@@ -87,3 +87,8 @@ ENV/
 
 # Rope project settings
 .ropeproject
+/projects/project1/dataset/test.csv
+/projects/project1/dataset/sample-submission.csv
+/projects/project1/dataset/train.csv
+/projects/project1/dataset/cleaned_train.csv
+/projects/project1/dataset/output.csv

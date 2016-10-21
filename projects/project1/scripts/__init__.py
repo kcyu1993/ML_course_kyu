@@ -6,6 +6,7 @@ from . import data_clean
 from . import plot
 from . import fitting_model
 from . import regularizer
+from . import network
 # from . import build_polynomial
 # from . import plots
 # from . import least_squares

@@ -27,6 +27,12 @@ error = 'mse'
 def least_squares(y, tx):
     return np.linalg.solve(np.dot(tx.T,tx), np.dot(tx.T,y))
 
+
+def sigmoid(t):
+    """apply sigmoid function on t."""
+    return 1 / (1 + np.exp(-t))
+
+
 def ridge_regression(y, tx, lambda_):
     """implement ridge regression."""
     # ***************************************************

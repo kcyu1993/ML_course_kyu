@@ -12,6 +12,9 @@ class Regularizer(object):
     def get_loss(self, loss):
         return loss
 
+    def get_gradient(self, weight):
+        return 0
+
     @staticmethod
     def get_regularizer(regularizer=None, parameter=None):
         if regularizer is None:

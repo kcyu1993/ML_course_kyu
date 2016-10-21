@@ -4,8 +4,8 @@ import numpy as np
 from .gradient import *
 from .costs import *
 from .helpers import batch_iter, build_k_indices
-from .learning_model import ridge_regression
-
+from .learning_model import *
+from .regularizer import *
 
 # Test
 from sklearn import svm
@@ -75,9 +75,7 @@ class Model(object):
         elif cross_valid > 0:
             self.cross_validadtion(cross_valid)
 
-
     """ Begining of the optimize Routines """
-
     def sgd(self, lr=0.001, momentum=0.9, decay=0.2, max_iters=100, batch_size=10):
         '''Define the SGD algorithm here'''
         w = self.weights[0]
@@ -105,6 +103,7 @@ class Model(object):
 
     def normalequ(self):
         '''Define Gradient descent here'''
+
         raise NotImplementedError
 
     def cross_validation(self, cv, lambdas, *args):
@@ -116,7 +115,7 @@ class Model(object):
         :param args:
         :return:
         """
-        k_indices = build_k_indices(y, cv)
+        k_indices = build_k_indices(self.train_y, cv)
         # define lists to store the loss of training data and test data
         mse_tr = []
         mse_te = []
@@ -137,7 +136,7 @@ class Model(object):
         # Select the best parameter during the cross validations.
         print('K-fold cross validation result: ', mse_tr, mse_te)
 
-    def _loop_cross_validation(self,y, x, k_indices, k, lamb):
+    def _loop_cross_validation(self, y, x, k_indices, k, lamb):
         train_ind = np.concatenate((k_indices[:k], k_indices[k + 1:]), axis=0)
         train_ind = np.reshape(train_ind, (train_ind.size,))
 
@@ -175,8 +174,6 @@ class Model(object):
 
 
 class LinearRegression(Model):
-
-
     def __init__(self, train, validation=None, initial_weight=None, regularizer=None, regularizer_p=None):
         # Initialize the super class with given data.
         super(LinearRegression, self).__init__(train, validation)
@@ -188,13 +185,8 @@ class LinearRegression(Model):
         else:
             self.weights.append(np.random.rand(degree))
 
-        self.regularizer = regularizer
+        self.regularizer = Regularizer.get_regularizer(regularizer, regularizer_p)
         self.regularizer_p = regularizer_p
-        if self.regularizer is not None:
-            if self.regularizer_p is None:
-                self.regularizer_p = 0.01
-
-
 
     def __call__(self, x):
         return np.dot(x, self.weights[-1])
@@ -207,7 +199,8 @@ class LinearRegression(Model):
             _x = batch_x[index]
             grad = grad + gradient_least_square(_y, _x, weight, self.loss_function_name)
         grad /= N
-        return grad / N
+        grad += self.regularizer.get_gradient(weight)
+        return grad
 
     def predict(self, x, weight):
         """Prediction function"""
@@ -216,48 +209,51 @@ class LinearRegression(Model):
         pred[np.where(pred > 0)] = 1
         return pred
 
-class RidgeRegression(Model):
 
-    def __init__(self, train, lambdas=np.logspace(-4,2,30), validation=None):
+class LogisticRegression(Model):
+    """ Logistic regression """
+
+    def __init__(self, train, validation=None, initial_weight=None,
+                 loss_function='logistic',
+                 regularizer=None, regularizer_p=None):
         # Initialize the super class with given data.
-        super(RidgeRegression, self).__init__(train, validation)
+        super(LinearRegression, self).__init__(train, validation)
         degree = self.train_x.shape[1]
-        # no need to init the weights. Instead, choose the lambda.
-        self.lambdas = lambdas
 
+        # Initialize the weight for linear model.
+        if initial_weight is not None:
+            self.weights.append(initial_weight)
+        else:
+            self.weights.append(np.random.rand(degree))
 
-    def __call__(self, x):
-        return np.dot(x, self.weights[-1])
+        self.regularizer = Regularizer.get_regularizer(regularizer, regularizer_p)
+        self.regularizer_p = regularizer_p
+        self.pred_label = [-1, 1]
 
-    def get_gradient(self, batch_y, batch_x, weight):
-        raise NotImplementedError
+    def __call__(self, x, cutting, predict_label=None, **kwargs):
+        """Define the fit function and get prediction"""
+        return sigmoid(np.dot(x, self.weights[-1]))
 
-    def predict(self, x, weight):
-        """Prediction function"""
-        pred = np.dot(x, weight)
-        pred[np.where(pred <= 0)] = -1
-        pred[np.where(pred > 0)] = 1
+    def get_gradient(self, y, x, weight):
+        return np.dot(x.T, sigmoid(np.dot(x, weight)) - y) + self.regularizer.get_gradient(weight)
+
+    def predict(self, x, weight, cutting=0, predict_label=None):
+        """ Prediction of labels """
+        if predict_label is None:
+            predict_label = self.pred_label
+        pred = sigmoid(np.dot(x, weight))
+        pred[np.where(pred <= cutting)] = predict_label[0]
+        pred[np.where(pred > cutting)] = predict_label[1]
         return pred
 
-    def train(self, optimizer=None, cross_valid=4, loss_function='mse', **kwargs):
-        """
-        Override the train function, to a simple direct solution with selection based on
-        misclassification rate, with default cross validation
-        :param optimizer:
-        :param cross_valid:
-        :param loss_function:
-        :param kwargs:
-        :return:
-        """
+    def compute_weight(self, y, tx, optimizer='sgd'):
+        if optimizer is 'sgd':
+            self.sgd()
+        return self.weights[-1]
 
-
-
-    def compute_weight(self, y, x, lamb):
-        _, weight = ridge_regression(y, x, lamb)
-        return weight
-
-
-
+    def train(self, optimizer='sgd', cross_valid=0, loss_function='logistic', **kwargs):
+        """ Make the default loss logistic """
+        return super(LogisticRegression, self).train(optimizer, cross_valid, loss_function)
 
 class SupportVectorMachineSK(Model):
     def __init__(self, train, validation=None):

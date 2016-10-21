@@ -2,8 +2,8 @@ from __future__ import absolute_import
 
 # Useful starting lines
 # %matplotlib inline
-import numpy as np
-import matplotlib.pyplot as plt
+# import numpy as np
+# import matplotlib.pyplot as plt
 # %load_ext autoreload
 # %autoreload 2
 
@@ -11,9 +11,34 @@ from projects.project1.scripts.proj1_helpers import *
 from projects.project1.scripts.helpers import *
 from projects.project1.scripts.learning_model import *
 from projects.project1.scripts.data_clean import *
-from .model import *
+from projects.project1.scripts.model import *
+from projects.project1.scripts.network import Network
 import os, datetime
 
+
+def test_Network():
+    training_data, valid_data = load_train_data_neural(validation=True, validation_ratio=0.1)
+    network = Network([30, 100, 20, 2])
+    network.SGD(training_data=training_data, epochs=100, lr=0.05, mini_batch_size=32,
+                evaluation_data=valid_data,
+                halve_learning_rate=10, momentum=0.8,
+                monitor_evaluation_accuracy=True, monitor_evaluation_cost=True,
+                monitor_training_accuracy=True, monitor_training_cost=True)
+
+
+test_Network()
+
+
+def test_split():
+    x = np.array(range(0, 9)).reshape((3, 3))
+    y = np.array(range(0, 3))
+    result = split_data_general(x, y)
+    print(result)
+    [tr_x, tr_y], [te_x, te_y] = result
+    print(tr_x, tr_y, te_x, te_y)
+
+
+# test_split()
 
 def test_Model():
     y, x, _ = load_train_data()
@@ -24,7 +49,8 @@ def test_Model():
     # lin_model = LogisticRegressionSK([y, x[0]])
     lin_model.train()
 
-test_Model()
+
+# test_Model()
 
 def test1():
     data_dir = get_dataset_dir()

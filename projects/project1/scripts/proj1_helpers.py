@@ -2,8 +2,16 @@
 """some helper functions for project 1."""
 import csv
 import numpy as np
-from projects.project1.scripts.data_clean import remove_outlier
+from projects.project1.scripts.data_clean import remove_outlier, fill_missing
 import os
+from .helpers import standardize, split_data_general
+
+# train_filename = 'reduced_train.csv'
+# test_filename = 'reduced_test.csv'
+# train_filename = 'train.csv'
+# test_filename = 'train.csv'
+train_filename = 'mean_fill_train.csv'
+test_filename = 'mean_fill_test.csv'
 
 def get_dataset_dir():
     """
@@ -16,14 +24,66 @@ def get_dataset_dir():
     data_dir = os.path.join(current_dir, 'dataset')
     return data_dir
 
-def load_train_data(sub_sample=False, clean=True, validation=False):
-    filename = 'train.csv'
+
+def get_filepath(file='train'):
+    if file is 'train':
+        return os.path.join(get_dataset_dir(), train_filename)
+    elif file is 'test':
+        return os.path.join(get_dataset_dir(), test_filename)
+    else:
+        raise NotImplementedError
+
+
+def load_train_data(sub_sample=False, clean=True, original_y=False, validation=False):
+    filename = train_filename
     if clean is True:
         filename = 'cleaned_' + filename
     path = os.path.join(get_dataset_dir(), filename)
-    return load_csv_data(path, sub_sample=sub_sample, original_y=False)
+    print('loading training data from {}'.format(path))
+    return load_csv_data(path, sub_sample=sub_sample, original_y=original_y)
 
 
+def load_test_data(sub_sample=False, clean=True, original_y=False, validation=False):
+    filename = test_filename
+    if clean is True:
+        filename = 'cleaned_' + filename
+    path = os.path.join(get_dataset_dir(), filename)
+    print("loading test data from {}".format(path))
+    return load_csv_data(path, sub_sample=sub_sample, original_y=original_y)
+
+
+def load_train_data_neural(sub_sample=False, clean=True, validation=False, validation_ratio=0.3):
+    filename = train_filename
+    if clean is True:
+        filename = 'cleaned_' + filename
+    path = os.path.join(get_dataset_dir(), filename)
+    tr_y, tr_data, ids = load_csv_data(path, sub_sample=sub_sample, original_y=False)
+    tr_data, tr_mean, tr_std = standardize(tr_data, intercept=False)
+    dim = tr_data.shape[1]
+    training_inputs = [np.reshape(x, (dim, 1)) for x in tr_data]
+    training_results = [vectorize_result(y) for y in tr_y]
+    if validation is False:
+        return zip(training_inputs, training_results)
+    [tr_x, tr_y], [te_x, te_y] = split_data_general(training_inputs, training_results, ratio=[1 - validation_ratio])
+
+    print("Spliting data into training and validation with size {tr}, {te}".format(tr=len(tr_x), te=len(te_x)))
+    tr_data = zip(tr_x, tr_y)
+    te_data = zip(te_x, te_y)
+    return tr_data, te_data
+
+
+def vectorize_result(y):
+    """
+    From [-1, 1] into binary codes.
+    :param y: either -1 or 1
+    :return: [1, 0] for -1, [0, 1] for 1
+    """
+    res = np.zeros((2, 1))
+    if y == -1:
+        res[0] = 1.0
+    elif y == 1:
+        res[1] = 1.0
+    return res
 
 def load_csv_data(data_path, sub_sample=False, original_y=False):
     """Loads data and returns y (class labels), tX (features) and ids (event ids)"""
@@ -78,9 +138,27 @@ def get_csv_header(data_path):
     :param data_path: given data path, should be absolute path to make sure.
     :return: header as a tuple
     """
-    f = open(data_path, 'rb')
+    f = open(data_path)
     reader = csv.reader(f)
-    return reader.next()
+    header = next(reader)
+    print(header)
+    return header
+
+
+def truncate_csv(line=1000):
+    y, x, ids = load_train_data(clean=False, original_y=True)
+    file_path = os.path.join(get_dataset_dir(), 'train.csv')
+    header = get_csv_header(file_path)
+    truncate_filename = 'reduced_train.csv'
+    truncate_path = os.path.join(get_dataset_dir(), truncate_filename)
+    save_data_as_original_format(y[:line, ], ids[:line, ], x[:line, :], header, truncate_path)
+    y, x, ids = load_test_data(clean=False, original_y=True)
+    file_path = os.path.join(get_dataset_dir(), 'test.csv')
+    header = get_csv_header(file_path)
+    truncate_filename = 'reduced_test.csv'
+    truncate_path = os.path.join(get_dataset_dir(), truncate_filename)
+    save_data_as_original_format(y[:line, ], ids[:line, ], x[:line, :], header, truncate_path)
+
 
 def save_data_as_original_format(y, ids, x, headers, data_path):
     """
@@ -92,6 +170,7 @@ def save_data_as_original_format(y, ids, x, headers, data_path):
     :param data_path: output data path to be saved
     :return: None
     """
+    print('Writing data as original format to {}'.format(data_path))
     with open(data_path, 'w') as csvfile:
         writer = csv.DictWriter(csvfile, delimiter=",", fieldnames=headers)
         writer.writeheader()
@@ -108,12 +187,10 @@ def clean_save_data_without_invalid(filename):
     """
     data_dir = get_dataset_dir()
     train_path = os.path.join(data_dir, filename)
-    print(data_dir)
+    print("clean and save {} to {}".format(filename, train_path))
 
     DATA_TRAIN_PATH = train_path  # download train data and supply path here
     y, tX, ids = load_csv_data(DATA_TRAIN_PATH, original_y=True)
-
-    print(len(y))
     # data clean
 
     tx_clean = remove_outlier(tX)
@@ -129,3 +206,12 @@ def clean_save_data_with_filling(filename, method='mean'):
     :return:
     """
 
+    train_path = os.path.join(get_dataset_dir(), filename)
+    y, tX, ids = load_csv_data(train_path, original_y=True)
+
+    # fill the data
+    clean_tx = fill_missing(tX, missing=-999.0, method=method)
+    header = get_csv_header(train_path)
+    cleaned_name = 'mean_fill_' + filename
+    cleaned_path = os.path.join(get_dataset_dir(), cleaned_name)
+    save_data_as_original_format(y, ids, clean_tx, header, cleaned_path)

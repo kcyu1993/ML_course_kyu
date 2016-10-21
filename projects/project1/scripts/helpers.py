@@ -3,7 +3,8 @@
 import numpy as np
 import os
 
-def standardize(x, mean_x=None, std_x=None):
+
+def standardize(x, mean_x=None, std_x=None, intercept=True):
     """Standardize the original data set."""
     if mean_x is None:
         mean_x = np.mean(x, axis=0)
@@ -11,8 +12,10 @@ def standardize(x, mean_x=None, std_x=None):
     if std_x is None:
         std_x = np.std(x, axis=0)
     x[:, std_x>0] = x[:, std_x>0] / std_x[std_x>0]
-    
-    tx = np.hstack((np.ones((x.shape[0],1)), x))
+    if intercept is True:
+        tx = np.hstack((np.ones((x.shape[0], 1)), x))
+    else:
+        tx = x
     return tx, mean_x, std_x
 
 
@@ -78,11 +81,23 @@ def split_data(x, y, ratio, seed=1):
     x2, y2 = zip(*p2)
     return x1, y1, x2, y2
 
-# def split_data_general(*args, ratio=0.5, seed=1):
-#     np.random.seed(seed=seed)
-#     split_pos = int(ratio * len(args[0]))
-#     index = np.random.permutation(range(len(args[0])))
 
+def split_data_general(*args, ratio=[0.5], seed=1):
+    np.random.seed(seed=seed)
+    split_pos = [int(r * len(args[0])) for r in ratio]
+    index = np.random.permutation(range(len(args[0])))
+    split_indices = np.split(index, split_pos)
+    split_result = []
+    for split_index in split_indices:
+        group = []
+        for arg in args:
+            arg = np.array(arg)
+            if len(arg.shape) > 1:
+                group.append(arg[split_index, :])
+            else:
+                group.append(arg[split_index,])
+        split_result.append(group)
+    return split_result
 
 def get_dataset_dir():
     current_dir = os.path.dirname(os.path.realpath(__file__))

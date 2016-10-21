@@ -19,7 +19,7 @@ import sys
 
 # Third-party libraries
 import numpy as np
-
+from .proj1_helpers import vectorize_result
 
 #### Define the quadratic and cross-entropy cost functions
 
@@ -135,17 +135,38 @@ class Network(object):
             a = sigmoid(np.dot(w, a) + b)
         return a
 
-    def SGD(self, training_data, epochs, mini_batch_size, eta,
-            lmbda=0.0,
+    def SGD(self, training_data, epochs, mini_batch_size, lr,
+            regular_p=0.0,
             no_improve=0,
             halve_learning_rate=0,
-            use_momentum=0.0,
+            momentum=0.0,
             evaluation_data=None,
             monitor_evaluation_cost=False,
             monitor_evaluation_accuracy=False,
             monitor_training_cost=False,
             monitor_training_accuracy=False):
-
+        """
+        SGD algorithm with support of
+            L2 regularization
+            no improve learning rate halve
+            early stop
+            momentum for velocity learning
+            Monitor statistics.
+        :param training_data: zip( train_x, train_y)
+        :param epochs: number of epoch in total
+        :param mini_batch_size:
+        :param lr: learning rate
+        :param regular_p: regularize parameter
+        :param no_improve: no improve steps, default = 0
+        :param halve_learning_rate: minimum dropped learning rate.
+        :param momentum: momentum, default = 0, equals to normal sgd
+        :param evaluation_data: zip(test_x, test_y)
+        :param monitor_evaluation_cost:
+        :param monitor_evaluation_accuracy:
+        :param monitor_training_cost:
+        :param monitor_training_accuracy:
+        :return: return metrics.
+        """
         """Train the neural network using mini-batch stochastic gradient
         descent.  The ``training_data`` is a list of tuples ``(x, y)``
         representing the training inputs and the desired outputs.  The
@@ -164,6 +185,7 @@ class Network(object):
         evaluation data at the end of each epoch. Note that the lists
         are empty if the corresponding flag is not set.
 
+
         """
         monitor_halve_learning_rate = False
         monitor_no_imrpove = False
@@ -171,7 +193,7 @@ class Network(object):
         if halve_learning_rate > 0:
             if no_improve == 0: no_improve = 10
             monitor_halve_learning_rate = True
-            eta_original = eta
+            lr_original = lr
 
         if no_improve > 0:
             monitor_evaluation_accuracy = True
@@ -179,37 +201,42 @@ class Network(object):
             best_in_n = 0.0
             best_in_n_counter = 0
 
-        if evaluation_data: n_data = len(evaluation_data)
+        ## TODO migrate from python 2 to 3
+        training_data = list(training_data)
+
+        if evaluation_data:
+            evaluation_data = list(evaluation_data)
+            n_data = len(evaluation_data)
         n = len(training_data)
         evaluation_cost, evaluation_accuracy = [], []
         training_cost, training_accuracy = [], []
-        for j in xrange(epochs):
+        for j in range(epochs):
             random.shuffle(training_data)
             mini_batches = [
                 training_data[k:k + mini_batch_size]
-                for k in xrange(0, n, mini_batch_size)]
+                for k in range(0, n, mini_batch_size)]
             for mini_batch in mini_batches:
                 self.update_mini_batch(
-                    mini_batch, eta, lmbda, len(training_data), use_momentum)
+                    mini_batch, lr, regular_p, len(training_data), momentum)
             print("Epoch %s training complete" % j)
             if monitor_training_cost:
-                cost = self.total_cost(training_data, lmbda)
+                cost = self.total_cost(training_data, regular_p)
                 training_cost.append(cost)
                 print("Cost on training data: {}".format(cost))
             if monitor_training_accuracy:
                 accuracy = self.accuracy(training_data, convert=True)
                 training_accuracy.append(accuracy)
-                print("Accuracy on training data: {} / {}".format(
-                    accuracy, n))
+                print("Accuracy on training data: {} / {} = {}".format(
+                    accuracy, n, float(accuracy) / n))
             if monitor_evaluation_cost:
-                cost = self.total_cost(evaluation_data, lmbda, convert=True)
+                cost = self.total_cost(evaluation_data, regular_p, convert=False)
                 evaluation_cost.append(cost)
                 print("Cost on evaluation data: {}".format(cost))
             if monitor_evaluation_accuracy:
-                accuracy = self.accuracy(evaluation_data)
+                accuracy = self.accuracy(evaluation_data, convert=True)
                 evaluation_accuracy.append(accuracy)
-                print("Accuracy on evaluation data: {} / {}".format(
-                    self.accuracy(evaluation_data), n_data))
+                print("Accuracy on evaluation data: {} / {} = {}".format(
+                    accuracy, n_data, float(accuracy) / n_data))
                 if monitor_no_imrpove:
                     if accuracy > best_in_n:
                         best_in_n = accuracy
@@ -218,8 +245,8 @@ class Network(object):
                         best_in_n_counter = best_in_n_counter + 1
                     if best_in_n_counter >= no_improve:
                         if monitor_halve_learning_rate:
-                            eta = eta / 2
-                            if eta * halve_learning_rate < eta_original:
+                            lr = lr / 2
+                            if lr * halve_learning_rate < lr_original:
                                 print("Learning rate has been dropped \
                                 below 1/%s" % halve_learning_rate)
                                 break
@@ -232,7 +259,7 @@ class Network(object):
         return evaluation_cost, evaluation_accuracy, \
                training_cost, training_accuracy
 
-    def update_mini_batch(self, mini_batch, eta, lmbda, n, use_momentum):
+    def update_mini_batch(self, mini_batch, lr, regular_p, n, momentum):
         """Update the network's weights and biases by applying gradient
         descent using backpropagation to a single mini batch.  The
         ``mini_batch`` is a list of tuples ``(x, y)``, ``eta`` is the
@@ -249,9 +276,9 @@ class Network(object):
 
         # Update the velocities vector, note that when use_momentum = 0,
         # the momentum will deprecated to normal SGD
-        self.weights_v = [(use_momentum - eta * (lmbda / n)) * v - (eta / len(mini_batch)) * nw
+        self.weights_v = [(momentum - lr * (regular_p / n)) * v - (lr / len(mini_batch)) * nw
                           for v, nw in zip(self.weights_v, nabla_w)]
-        self.biases_v = [use_momentum * b_v - (eta / len(mini_batch)) * nb
+        self.biases_v = [momentum * b_v - (lr / len(mini_batch)) * nb
                          for b_v, nb in zip(self.biases_v, nabla_b)]
         self.weights = [w_v + w for w_v, w in zip(self.weights_v, self.weights)]
         self.biases = [b_v + b for b_v, b in zip(self.biases_v, self.biases)]
@@ -286,7 +313,7 @@ class Network(object):
         # second-last layer, and so on.  It's a renumbering of the
         # scheme in the book, used here to take advantage of the fact
         # that Python can use negative indices in lists.
-        for l in xrange(2, self.num_layers):
+        for l in range(2, self.num_layers):
             z = zs[-l]
             sp = sigmoid_prime(z)
             delta = np.dot(self.weights[-l + 1].transpose(), delta) * sp
@@ -335,7 +362,7 @@ class Network(object):
         cost = 0.0
         for x, y in data:
             a = self.feedforward(x)
-            if convert: y = vectorized_result(y)
+            if convert: y = vectorize_result(y)
             cost += self.cost.fn(a, y) / len(data)
         cost += 0.5 * (lmbda / len(data)) * sum(
             np.linalg.norm(w) ** 2 for w in self.weights)
@@ -351,6 +378,16 @@ class Network(object):
         json.dump(data, f)
         f.close()
 
+    def predict(self, data):
+        """
+        Given the input data and provide output prediction
+        :param data: same format as train, should be the same dimension of self.sizes[0]
+        :return: the predicting labels.
+        """
+        result = np.argmax(self.feedforward(data), axis=1)
+        result[np.where(result < 0.5)] = -1
+        result[np.where(result > 0.5)] = 1
+        return result
 
 #### Loading a Network
 def load(filename):
@@ -369,15 +406,6 @@ def load(filename):
 
 
 #### Miscellaneous functions
-def vectorized_result(j):
-    """Return a 10-dimensional unit vector with a 1.0 in the j'th position
-    and zeroes elsewhere.  This is used to convert a digit (0...9)
-    into a corresponding desired output from the neural network.
-
-    """
-    e = np.zeros((10, 1))
-    e[j] = 1.0
-    return e
 
 
 def sigmoid(z):

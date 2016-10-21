@@ -26,7 +26,7 @@ def test_Network():
                 monitor_training_accuracy=True, monitor_training_cost=True)
 
 
-test_Network()
+# test_Network()
 
 
 def test_split():
@@ -88,23 +88,6 @@ def test1():
 
 # test1()
 
-def test_lsq_sgd_with_cleand_data():
-    b_time = datetime.datetime.now()
-    print('Begining reading data')
-    data_dir = get_dataset_dir()
-    train_path = os.path.join(data_dir, 'cleaned_train.csv')
-    DATA_TRAIN_PATH = train_path  # download train data and supply path here
-    y, tX, ids = load_csv_data(DATA_TRAIN_PATH)
-    print("Finish loading in {s} seconds".
-          format(s=(datetime.datetime.now()-b_time).total_seconds()))
-    tX = standardize(tX)
-    # Begin the least square sgd
-    e_time = datetime.datetime.now()
-    print("Finish data reading in {s} seconds".
-          format(s=(e_time-b_time).total_seconds()))
-    losses, weights = least_squares_SGD(y, tX[0],
-                                        gamma=0.1, max_iters=10, batch_size=16)
-    print(losses)
 
 # test_lsq_sgd_with_cleand_data()
 

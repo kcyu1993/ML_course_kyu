@@ -3,8 +3,9 @@ from projects.project1.scripts.proj1_helpers import *
 # from projects.project1.scripts.helpers import *
 # from projects.project1.scripts.learning_model import *
 # from projects.project1.scripts.data_clean import *
-# from projects.project1.scripts.model import *
+from projects.project1.scripts.model import LogisticRegression
 from projects.project1.scripts.network import Network
+from projects.project1.scripts.test_logistic import test
 import os, datetime
 
 
@@ -19,17 +20,52 @@ def test_Network():
     _, test_data, ids = load_test_data(clean=False)
 
     print("predicting the test data")
-    test_predict = network.predict(test_data)
+    test_predict = network.predict(test_data.T)
     print("finish {} prediction and saving results".format(len(test_predict)))
     create_csv_submission(ids, test_predict, 'neural-mean_fill_output.csv')
 
 
-def test_logistic():
+def test_lsq_sgd_with_cleand_data():
+    b_time = datetime.datetime.now()
+    print('Begining reading data')
+    data_dir = get_dataset_dir()
+    train_path = os.path.join(data_dir, 'cleaned_train.csv')
+    DATA_TRAIN_PATH = train_path  # download train data and supply path here
+    y, tX, ids = load_csv_data(DATA_TRAIN_PATH)
+    print("Finish loading in {s} seconds".
+          format(s=(datetime.datetime.now() - b_time).total_seconds()))
+    tX = standardize(tX)
+    # Begin the least square sgd
+    e_time = datetime.datetime.now()
+    print("Finish data reading in {s} seconds".
+          format(s=(e_time - b_time).total_seconds()))
+    # losses, weights = least_squares_SGD(y, tX[0],
+    #                                     gamma=0.1, max_iters=10, batch_size=16)
+    # print(losses)
 
-# test_Network()
+def test_logistic():
+    b_time = datetime.datetime.now()
+    print('Begining reading data')
+    DATA_TRAIN_PATH = get_filepath('train')
+    y, tX, ids = load_csv_data(DATA_TRAIN_PATH)
+    print("Finish loading in {s} seconds".
+          format(s=(datetime.datetime.now() - b_time).total_seconds()))
+    tX = standardize(tX)
+    # Begin the least square sgd
+    e_time = datetime.datetime.now()
+    print("Finish data reading in {s} seconds".
+          format(s=(e_time - b_time).total_seconds()))
+    logistic = LogisticRegression((y, tX[0]), regularizer="Ridge", regularizer_p=0.1)
+    result = logistic.train(lr=0.1, batch_size=32, max_iters=1000)
+    print(result)
+    # print(losses)
+
+
+test_logistic()
 
 # truncate_csv(1000)
 # clean_save_data_with_filling(train_filename)
 # clean_save_data_with_filling(test_filename)
 
 # test_Network()
+# test()

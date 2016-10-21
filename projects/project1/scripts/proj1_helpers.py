@@ -13,6 +13,10 @@ from .helpers import standardize, split_data_general
 train_filename = 'mean_fill_train.csv'
 test_filename = 'mean_fill_test.csv'
 
+
+# train_filename = 'cleaned_train.csv'
+# test_filename = 'cleaned_test.csv'
+
 def get_dataset_dir():
     """
     Utility function: get the absolute dataset directory based on project dir.

@@ -29,9 +29,9 @@ class Regularizer(object):
 class Ridge(Regularizer):
 
     def __init__(self, parameter):
+        self.p = parameter
         if parameter is None:
             self.p = 0.01
-        self.p = parameter
 
     def get_gradient(self, weight):
         """

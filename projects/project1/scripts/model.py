@@ -69,7 +69,7 @@ class Model(object):
         self.loss_function_name = loss_function
         if cross_valid == 0:
             if optimizer is 'sgd':
-                self.sgd()
+                self.sgd(**kwargs)
             elif optimizer is 'gd':
                 self.gd()
         elif cross_valid > 0:
@@ -79,6 +79,8 @@ class Model(object):
     def sgd(self, lr=0.001, momentum=0.9, decay=0.2, max_iters=100, batch_size=10):
         '''Define the SGD algorithm here'''
         w = self.weights[0]
+        loss = self.compute_loss(self.train_y, self.train_x, w)
+        print("initial loss is {} ".format(loss))
         for epoch in range(max_iters):
             print('Epoch {e} in {m}'.format(e=epoch+1, m=max_iters), end="\t")
             for batch_y, batch_x in batch_iter(self.train_y, self.train_x, batch_size):
@@ -165,6 +167,8 @@ class Model(object):
         assert len(pred) == len(target)
         # Calculate the mis-classification rate:
         N = len(pred)
+        pred = np.reshape(pred, (N,))
+        target = np.reshape(target, (N,))
         nb_misclass = np.count_nonzero(target - pred)
         return nb_misclass / N
 
@@ -217,33 +221,45 @@ class LogisticRegression(Model):
                  loss_function='logistic',
                  regularizer=None, regularizer_p=None):
         # Initialize the super class with given data.
-        super(LinearRegression, self).__init__(train, validation)
+        # Transform the y into {0,1}
+        y, tx = train
+        y[np.where(y < 0)] = 0
+        train = (y, tx)
+        if validation:
+            val_y, val_tx = validation
+            val_y[np.where(val_y < 0)] = 0
+            validation = (val_y, val_tx)
+        super(LogisticRegression, self).__init__(train, validation)
         degree = self.train_x.shape[1]
 
         # Initialize the weight for linear model.
         if initial_weight is not None:
             self.weights.append(initial_weight)
         else:
-            self.weights.append(np.random.rand(degree))
+            # self.weights.append(np.random.rand(degree))
+            self.weights.append(np.zeros((degree,)))
 
         self.regularizer = Regularizer.get_regularizer(regularizer, regularizer_p)
         self.regularizer_p = regularizer_p
         self.pred_label = [-1, 1]
 
-    def __call__(self, x, cutting, predict_label=None, **kwargs):
+    def predict_proba(self, x, cutting, predict_label=None, **kwargs):
         """Define the fit function and get prediction"""
         return sigmoid(np.dot(x, self.weights[-1]))
 
     def get_gradient(self, y, x, weight):
-        return np.dot(x.T, sigmoid(np.dot(x, weight)) - y) + self.regularizer.get_gradient(weight)
+        y = np.reshape(y, (len(y),))
+        return np.dot(x.T, sigmoid(np.dot(x, weight)) - y) \
+               + self.regularizer.get_gradient(weight)
 
-    def predict(self, x, weight, cutting=0, predict_label=None):
+    def predict(self, x, weight=None, cutting=0.5, predict_label=None):
         """ Prediction of labels """
         if predict_label is None:
             predict_label = self.pred_label
+        if weight is None: weight = self.weights[-1]
         pred = sigmoid(np.dot(x, weight))
-        pred[np.where(pred <= cutting)] = predict_label[0]
-        pred[np.where(pred > cutting)] = predict_label[1]
+        pred[np.where(pred <= cutting)] = 0
+        pred[np.where(pred > cutting)] = 1
         return pred
 
     def compute_weight(self, y, tx, optimizer='sgd'):
@@ -251,9 +267,13 @@ class LogisticRegression(Model):
             self.sgd()
         return self.weights[-1]
 
-    def train(self, optimizer='sgd', cross_valid=0, loss_function='logistic', **kwargs):
+    def train(self, cross_valid=0, loss_function='logistic',
+              lr=0.001, momentum=0.9, decay=0.2, max_iters=100, batch_size=10, **kwargs):
         """ Make the default loss logistic """
-        return super(LogisticRegression, self).train(optimizer, cross_valid, loss_function)
+        return super(LogisticRegression, self).train('sgd', cross_valid, loss_function,
+                                                     lr=lr, momentum=momentum,
+                                                     decay=decay, max_iters=max_iters,
+                                                     batch_size=batch_size, **kwargs)
 
 class SupportVectorMachineSK(Model):
     def __init__(self, train, validation=None):

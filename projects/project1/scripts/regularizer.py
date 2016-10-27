@@ -30,6 +30,7 @@ class Ridge(Regularizer):
 
     def __init__(self, parameter):
         self.p = parameter
+        self.name = 'Ridge'
         if parameter is None:
             self.p = 0.01
 
@@ -58,6 +59,7 @@ class Ridge(Regularizer):
 class Lasso(Regularizer):
 
     def __init__(self, parameter):
+        self.name = Lasso
         if parameter is None:
             self.p = 0.01
         self.p = parameter

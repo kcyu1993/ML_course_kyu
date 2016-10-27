@@ -1,9 +1,9 @@
 import numpy as np
+from scipy.stats.mstats import normaltest
 
 
 def calculate_valid_mean(x, outlier):
     raise NotImplementedError
-
 
 def fill_missing(data, missing=-999.0, method='mean'):
     '''
@@ -38,3 +38,26 @@ def remove_outlier(data, missing=-999.0):
 
 def perform_PCA(y, tx):
     raise NotImplementedError
+
+
+def normal(data, axis=0):
+    return normaltest(data, axis)
+
+
+def pca(data, nbNewColumn):
+    """
+    Author: Sina
+    :param data:
+    :param nbNewColumn:
+    :return:
+    """
+    S = np.cov(data.T)  # Coompute the covariance matrix
+    eig_val, eig_vec = np.linalg.eig(S)  # Get the eigenvalues and eigenvectors
+    # Sort the (eigenvalue, eigenvector) tuples from high to low
+    idx = np.argsort(eig_val)[::-1]
+    eig_val = eig_val[idx]
+    # sort eigenvectors according to same index
+    eig_vec = eig_vec[:, idx]
+    matrix_w = eig_vec[:, :nbNewColumn]
+    transformedX = np.dot(data, matrix_w)
+    return transformedX

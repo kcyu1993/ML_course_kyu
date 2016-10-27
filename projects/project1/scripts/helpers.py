@@ -105,7 +105,8 @@ def get_dataset_dir():
     # data_dir = os.path.join('..', current_dir)
     return os.path.join(current_dir, 'dataset')
 
-def build_k_indices(y, k_fold, seed):
+
+def build_k_indices(y, k_fold, seed=1):
     """build k indices for k-fold."""
     num_row = y.shape[0]
     interval = int(num_row / k_fold)

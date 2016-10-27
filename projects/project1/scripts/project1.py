@@ -41,13 +41,13 @@ def test_split():
 # test_split()
 
 def test_Model():
-    y, x, _ = load_train_data()
+    y, x, _ = load_train_data(clean=False)
     # tr_x, tr_y, te_x, te_y = split_data(y, x, ratio=0.7, seed=6)
     # lin_model = LinearRegression([tr_y, tr_x], validation=[te_y, te_x])
     x = standardize(x)
-    lin_model = LinearRegression([y, x[0]])
+    lin_model = LogisticRegression([y, x[0]], regularizer="Lasso", regularizer_p=0.01)
     # lin_model = LogisticRegressionSK([y, x[0]])
-    lin_model.train()
+    lin_model.train(lr=0.1, max_iters=100, batch_size=32)
 
 
 # test_Model()
@@ -89,6 +89,8 @@ def test1():
 # test1()
 
 
+if __name__ == '__main__':
+    test_Model()
 # test_lsq_sgd_with_cleand_data()
 
 

@@ -29,6 +29,18 @@ def get_dataset_dir():
     return data_dir
 
 
+def get_plot_path(filename=''):
+    """
+        Utility function: get the absolute dataset directory based on project dir.
+        :return:
+        """
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    current_dir, _ = os.path.split(current_dir)
+    # data_dir = os.path.join('..', current_dir)
+    plot_dir = os.path.join(current_dir, 'plots')
+    plot_path = os.path.join(plot_dir, filename)
+    return plot_path
+
 def get_filepath(file='train'):
     if file is 'train':
         return os.path.join(get_dataset_dir(), train_filename)
@@ -36,7 +48,6 @@ def get_filepath(file='train'):
         return os.path.join(get_dataset_dir(), test_filename)
     else:
         raise NotImplementedError
-
 
 def load_train_data(sub_sample=False, clean=True, original_y=False, validation=False):
     filename = train_filename
@@ -46,7 +57,6 @@ def load_train_data(sub_sample=False, clean=True, original_y=False, validation=F
     print('loading training data from {}'.format(path))
     return load_csv_data(path, sub_sample=sub_sample, original_y=original_y)
 
-
 def load_test_data(sub_sample=False, clean=True, original_y=False, validation=False):
     filename = test_filename
     if clean is True:
@@ -54,7 +64,6 @@ def load_test_data(sub_sample=False, clean=True, original_y=False, validation=Fa
     path = os.path.join(get_dataset_dir(), filename)
     print("loading test data from {}".format(path))
     return load_csv_data(path, sub_sample=sub_sample, original_y=original_y)
-
 
 def load_train_data_neural(sub_sample=False, clean=True, validation=False, validation_ratio=0.3):
     filename = train_filename
@@ -74,7 +83,6 @@ def load_train_data_neural(sub_sample=False, clean=True, validation=False, valid
     tr_data = zip(tr_x, tr_y)
     te_data = zip(te_x, te_y)
     return tr_data, te_data
-
 
 def vectorize_result(y):
     """
@@ -111,7 +119,6 @@ def load_csv_data(data_path, sub_sample=False, original_y=False):
     else:
         return y, input_data, ids
 
-
 def predict_labels(weights, data):
     """Generates class predictions given weights, and a test data matrix"""
     y_pred = np.dot(data, weights)
@@ -119,7 +126,6 @@ def predict_labels(weights, data):
     y_pred[np.where(y_pred > 0)] = 1
     
     return y_pred
-
 
 def create_csv_submission(ids, y_pred, name):
     """
@@ -135,7 +141,6 @@ def create_csv_submission(ids, y_pred, name):
         for r1, r2 in zip(ids, y_pred):
             writer.writerow({'Id':int(r1),'Prediction':int(r2)})
 
-
 def get_csv_header(data_path):
     """
     Get header line of a given csv file, for data manipulation purpose
@@ -147,7 +152,6 @@ def get_csv_header(data_path):
     header = next(reader)
     print(header)
     return header
-
 
 def truncate_csv(line=1000):
     y, x, ids = load_train_data(clean=False, original_y=True)
@@ -162,7 +166,6 @@ def truncate_csv(line=1000):
     truncate_filename = 'reduced_test.csv'
     truncate_path = os.path.join(get_dataset_dir(), truncate_filename)
     save_data_as_original_format(y[:line, ], ids[:line, ], x[:line, :], header, truncate_path)
-
 
 def save_data_as_original_format(y, ids, x, headers, data_path):
     """

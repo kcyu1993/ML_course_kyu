@@ -1,20 +1,17 @@
 from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 import numpy as np
+import copy
 from .gradient import *
 from .costs import *
 from .helpers import batch_iter, build_k_indices
 from .learning_model import *
 from .regularizer import *
 
-# Test
-from sklearn import svm
-from sklearn.linear_model import LogisticRegression, SGDClassifier
-from sklearn.feature_selection import RFECV
-
-
 class Model(object):
-    def __init__(self, train_data, validation=None):
+    def __init__(self, train_data, validation=None, initial_weight=None,
+                 loss_function_name='mse', cal_weight='gradient',
+                 regularizer=None, regularizer_p=None):
         """
         Initializer of all learning models.
         :param train_data: training data.
@@ -37,8 +34,25 @@ class Model(object):
         self.iterations = 0
         self.weights = []
         self.misclass_rate = []
-        self.loss_function = None
-        self.loss_function_name = None
+
+        ''' Define loss, weight calculation, regularizer '''
+        self.loss_function = get_loss_function(loss_function_name)
+        self.loss_function_name = loss_function_name
+        self.calculate_weight = cal_weight
+        self.regularizer = Regularizer.get_regularizer(regularizer, regularizer_p)
+        self.regularizer_p = regularizer_p
+
+        # Asserting degree
+        if len(self.train_x.shape) > 1:
+            degree = self.train_x.shape[1]
+        else:
+            degree = 1
+
+        # Initialize the weight for linear model.
+        if initial_weight is not None:
+            self.weights.append(initial_weight)
+        else:
+            self.weights.append(np.random.rand(degree))
 
     @abstractmethod
     def __call__(self, **kwargs):
@@ -54,8 +68,29 @@ class Model(object):
         raise NotImplementedError
 
     @abstractmethod
-    def compute_weight(self, y, tx, lamb):
+    def normalequ(self, **kwargs):
+        ''' define normal equation method to calculate optimal weights'''
         raise NotImplementedError
+
+    def compute_weight(self, y, x, **kwargs):
+        """ Return weight under given parameter """
+        model = copy.copy(self)
+        model.__setattr__('train_y', y)
+        model.__setattr__('train_x', x)
+        _kwargs = []
+        for name, value in kwargs.items():
+            # Recognize parameter "
+            if name is "regularizer_p":
+                model.__setattr__(name, value)
+            else:
+                _kwargs.append((name, value))
+        _kwargs = dict(_kwargs)
+        if model.calculate_weight is 'gradient':
+            return model.sgd(**_kwargs)
+        elif model.calculate_weight is 'newton':
+            return model.newton(**_kwargs)
+        elif model.calculate_weight is 'normalequ':
+            return model.normalequ(**_kwargs)
 
     def get_history(self):
         """
@@ -75,11 +110,28 @@ class Model(object):
         elif cross_valid > 0:
             self.cross_validadtion(cross_valid)
 
+        return self.weights[-1]
+
     """ Begining of the optimize Routines """
-    def sgd(self, lr=0.001, momentum=0.9, decay=0.2, max_iters=100, batch_size=10):
-        '''Define the SGD algorithm here'''
+
+    def sgd(self, lr=0.1, momentum=0.9, decay=0.5, max_iters=1000,
+            batch_size=128, early_stop=400, decay_intval=100):
+        """
+        Define the SGD algorithm here
+
+        :param lr:          learning rate
+        :param momentum:    momentum TODO
+        :param decay:       weight decay after fix iterations
+        :param max_iters:   maximum iterations
+        :param batch_size:  batch_size
+        :param early_stop:  early_stop after no improvement
+        :return: final weight vector
+        """
+
         w = self.weights[0]
         loss = self.compute_loss(self.train_y, self.train_x, w)
+        best_loss = loss
+        best_counter = 0
         print("initial loss is {} ".format(loss))
         for epoch in range(max_iters):
             print('Epoch {e} in {m}'.format(e=epoch+1, m=max_iters), end="\t")
@@ -102,43 +154,76 @@ class Model(object):
             else:
                 print('Train Loss {t_l}, Train mis-class {t_m}'.
                       format(t_l=loss, t_m=mis_class))
+            # judge the performance
+            if loss < best_loss:
+                best_loss = loss
+                best_counter = 0
+            else:
+                best_counter += 1
+                if best_counter > early_stop:
+                    print("Learning early stop since loss not improving for {} epoch.".format(best_counter))
+                    break
+                if best_counter > decay_intval:
+                    lr *= decay
+                    best_counter = 0
+        return self.weights[-1]
 
-    def normalequ(self):
-        '''Define Gradient descent here'''
-
+    def newton(self, lr=0.01, max_iters=100):
         raise NotImplementedError
 
-    def cross_validation(self, cv, lambdas, *args):
+    def cross_validation(self, cv, lambdas, lambda_name, seed=1, **kwargs):
         """
         Cross validation method to acquire the best prediction parameters.
         It will use the train_x y as data and do K-fold cross validation.
-        :param cv:
-        :param lambdas:
-        :param args:
-        :return:
+        :param cv:              cross validation times
+        :param lambdas:         array of lambdas to be validated
+        :param lambda_name:     the lambda name tag
+        :param seed:            random seed
+        :param kwargs:          other parameters could pass into compute_weight
+        :return: best_lambda, (training error, valid error)
         """
-        k_indices = build_k_indices(self.train_y, cv)
-        # define lists to store the loss of training data and test data
-        mse_tr = []
-        mse_te = []
-        self.lambdas = lambdas
 
-        for lamb in self.lambdas:
+        k_indices = build_k_indices(self.train_y, cv, seed)
+        # define lists to store the loss of training data and test data
+        err_tr = []
+        err_te = []
+        print("K-fold ({}) cross validation to examine [{}]".
+              format(cv, lambdas))
+        for lamb in lambdas:
+            print("For lambda: {}".format(lamb), end='')
             _mse_tr = []
             _mse_te = []
             for k in range(cv):
-                loss_tr, loss_te = self._loop_cross_validation(self.train_y, self.train_x, k_indices, k, lamb)
+                weight, loss_tr, loss_te = self._loop_cross_validation(self.train_y, self.train_x,
+                                                                       k_indices, k,
+                                                                       lamb, lambda_name, **kwargs)
                 _mse_tr += [loss_tr]
                 _mse_te += [loss_te]
             avg_tr = np.average(_mse_tr)
             avg_te = np.average(_mse_te)
-            mse_tr += [avg_tr]
-            mse_te += [avg_te]
-
+            err_tr += [avg_tr]
+            err_te += [avg_te]
+            print("\t train error {}, \t valid error {}".
+                  format(avg_tr, avg_te))
         # Select the best parameter during the cross validations.
-        print('K-fold cross validation result: ', mse_tr, mse_te)
+        print('K-fold cross validation result: \n {} \n {}'.
+              format(err_tr, err_te))
+        # Select the best based on least err_te
+        min_err_te = np.argmin(err_te)
+        print('Best err_te result {}, lambda {}'.
+              format(err_te[min_err_te], lambdas[min_err_te]))
+        return lambdas[min_err_te], (err_tr, err_te)
 
-    def _loop_cross_validation(self, y, x, k_indices, k, lamb):
+    def _loop_cross_validation(self, y, x, k_indices, k, lamb, lambda_name, **kwargs):
+        """
+        Single loop of cross validation
+        :param y:
+        :param x:
+        :param k_indices:
+        :param k:
+        :param lamb:
+        :return:
+        """
         train_ind = np.concatenate((k_indices[:k], k_indices[k + 1:]), axis=0)
         train_ind = np.reshape(train_ind, (train_ind.size,))
 
@@ -149,14 +234,18 @@ class Model(object):
         train_y = y[train_ind,]
         test_x = x[test_ind,]
         test_y = y[test_ind,]
-        weight = self.compute_weight(train_y, train_x, lamb)
+        # Insert one more kwargs item
+        kwargs[lambda_name] = lamb
+        # print("_loop_cv kwargs: ", end="")
+        # print(kwargs)
+
+        weight = self.compute_weight(train_y, train_x, **kwargs)
 
         # Compute the metrics and return
         loss_tr = self.compute_loss(train_y, train_x, weight)
         loss_te = self.compute_loss(test_y, test_x, weight)
 
         return weight, loss_tr, loss_te
-
 
     def compute_metrics(self, target, data, weight):
         """
@@ -175,22 +264,19 @@ class Model(object):
     def compute_loss(self, y, x, weight):
         return self.loss_function(y, x, weight)
 
-
-
 class LinearRegression(Model):
-    def __init__(self, train, validation=None, initial_weight=None, regularizer=None, regularizer_p=None):
+    """ Linear regression model """
+
+    def __init__(self, train, validation=None, initial_weight=None,
+                 regularizer=None, regularizer_p=None,
+                 loss_function_name='mse', calculate_weight='normalequ'):
         # Initialize the super class with given data.
-        super(LinearRegression, self).__init__(train, validation)
-        degree = self.train_x.shape[1]
-
-        # Initialize the weight for linear model.
-        if initial_weight is not None:
-            self.weights.append(initial_weight)
-        else:
-            self.weights.append(np.random.rand(degree))
-
-        self.regularizer = Regularizer.get_regularizer(regularizer, regularizer_p)
-        self.regularizer_p = regularizer_p
+        super(LinearRegression, self).__init__(train, validation,
+                                               initial_weight=initial_weight,
+                                               loss_function_name=loss_function_name,
+                                               cal_weight=calculate_weight,
+                                               regularizer=regularizer,
+                                               regularizer_p=regularizer_p)
 
     def __call__(self, x):
         return np.dot(x, self.weights[-1])
@@ -213,13 +299,37 @@ class LinearRegression(Model):
         pred[np.where(pred > 0)] = 1
         return pred
 
+    def normalequ(self):
+        """ Normal equation to get parameters """
+        tx = self.train_x
+        y = self.train_y
+        if self.regularizer is None:
+            return np.linalg.solve(np.dot(tx.T, tx), np.dot(tx.T, y))
+        elif self.regularizer.name is 'Ridge':
+            G = np.eye(tx.shape[1])
+            G[0, 0] = 0
+            hes = np.dot(tx.T, tx) + self.regularizer_p * G
+            return np.linalg.solve(hes, np.dot(tx.T, y))
+        else:
+            raise NotImplementedError
+
 
 class LogisticRegression(Model):
     """ Logistic regression """
 
     def __init__(self, train, validation=None, initial_weight=None,
-                 loss_function='logistic',
+                 loss_function_name='logistic',
+                 calculate_weight='gradient',
                  regularizer=None, regularizer_p=None):
+        """
+        Constructor of Logistic Regression model
+        :param train:           tuple (y, x)
+        :param validation:      tuple (y, x)
+        :param initial_weight:  weight vector, dim align x
+        :param loss_function:   f(x, y, weight)
+        :param regularizer:     "Ridge" || "Lasso"
+        :param regularizer_p:   parameter
+        """
         # Initialize the super class with given data.
         # Transform the y into {0,1}
         y, tx = train
@@ -229,43 +339,47 @@ class LogisticRegression(Model):
             val_y, val_tx = validation
             val_y[np.where(val_y < 0)] = 0
             validation = (val_y, val_tx)
-        super(LogisticRegression, self).__init__(train, validation)
-        degree = self.train_x.shape[1]
-
-        # Initialize the weight for linear model.
-        if initial_weight is not None:
-            self.weights.append(initial_weight)
-        else:
-            # self.weights.append(np.random.rand(degree))
-            self.weights.append(np.zeros((degree,)))
-
-        self.regularizer = Regularizer.get_regularizer(regularizer, regularizer_p)
-        self.regularizer_p = regularizer_p
+        super(LogisticRegression, self).__init__(train, validation,
+                                                 initial_weight=initial_weight,
+                                                 loss_function_name=loss_function_name,
+                                                 cal_weight=calculate_weight,
+                                                 regularizer=regularizer,
+                                                 regularizer_p=regularizer_p)
+        # Set predicted label
         self.pred_label = [-1, 1]
 
-    def predict_proba(self, x, cutting, predict_label=None, **kwargs):
+    def predict_proba(self, x, weight=None):
         """Define the fit function and get prediction"""
-        return sigmoid(np.dot(x, self.weights[-1]))
+        if weight is None:
+            weight = self.weights[-1]
+        return sigmoid(np.dot(x, weight))
 
     def get_gradient(self, y, x, weight):
+        """ calculate gradient given data and weight """
         y = np.reshape(y, (len(y),))
         return np.dot(x.T, sigmoid(np.dot(x, weight)) - y) \
                + self.regularizer.get_gradient(weight)
 
-    def predict(self, x, weight=None, cutting=0.5, predict_label=None):
-        """ Prediction of labels """
-        if predict_label is None:
-            predict_label = self.pred_label
+    def get_hessian(self, y, x, weight):
+        raise NotImplementedError
+
+    def predict(self, x, weight=None, cutting=0.5):
+        """ Prediction of event {0,1} """
         if weight is None: weight = self.weights[-1]
         pred = sigmoid(np.dot(x, weight))
         pred[np.where(pred <= cutting)] = 0
         pred[np.where(pred > cutting)] = 1
         return pred
 
-    def compute_weight(self, y, tx, optimizer='sgd'):
-        if optimizer is 'sgd':
-            self.sgd()
-        return self.weights[-1]
+    def predict_label(self, x, weight=None, cutting=0.5, predict_label=None):
+        """ Prediction result with labels """
+        if predict_label is None:
+            predict_label = self.pred_label
+        if weight is None: weight = self.weights[-1]
+        pred = self.predict(x, weight, cutting)
+        pred[np.where(pred == 0)] = predict_label[0]
+        pred[np.where(pred == 1)] = predict_label[1]
+        return pred
 
     def train(self, cross_valid=0, loss_function='logistic',
               lr=0.001, momentum=0.9, decay=0.2, max_iters=100, batch_size=10, **kwargs):
@@ -275,59 +389,7 @@ class LogisticRegression(Model):
                                                      decay=decay, max_iters=max_iters,
                                                      batch_size=batch_size, **kwargs)
 
-class SupportVectorMachineSK(Model):
-    def __init__(self, train, validation=None):
-        super(SupportVectorMachineSK, self).__init__(train, validation)
-        self.clf = svm.SVC()
-
-    def get_gradient(self, y, x, weight):
+    def normalequ(self, **kwargs):
+        """ Should never call """
         raise NotImplementedError
 
-    def predict(self, x, weight):
-        pred = self.clf.predict(x)
-        pred[np.where(pred <= 0)] = -1
-        pred[np.where(pred > 0)] = 1
-        return pred
-
-    def train(self, optimizer='sgd', cross_valid=0, loss_function='mse', **kwargs):
-        self.clf.fit(self.train_x, self.train_y)
-        mis_class = self.compute_metrics(self.train_y, self.train_x, None)
-        self.misclass_rate.append(mis_class)
-        print('Misclassification rate for SVM {m}'.format(m=mis_class))
-
-    def __call__(self, *args, **kwargs):
-        raise NotImplementedError
-
-class LogisticRegressionSK(Model):
-    def __init__(self, train, validation=None):
-        super(LogisticRegressionSK, self).__init__(train, validation)
-        self.clf = SGDClassifier(loss='log')
-
-    def get_gradient(self, y, x, weight):
-        raise NotImplementedError
-
-    def predict(self, x, weight):
-        pred = self.clf.predict(x)
-        # pred[np.where(pred <= 0)] = -1
-        # pred[np.where(pred > 0)] = 1
-        return pred
-
-    def train(self, optimizer='sgd', cross_valid=0, loss_function='mse', **kwargs):
-
-        estimator = svm.SVR(kernel='linear')
-        selector = RFECV(estimator=estimator, step=1, cv=5)
-        selector = selector.fit(self.train_x, self.train_y)
-        print(selector.support_)
-        selected = []
-        for index, select in enumerate(selector.support_):
-            if select[index] is True:
-                selected.append(index)
-        print(selected)
-
-        self.clf.fit(self.train_x[:,selected], self.train_y)
-        mis_class = self.compute_metrics(self.train_y, self.train_x, None)
-        self.misclass_rate.append(mis_class)
-        print('Misclassification rate for Logistic regression {m}'.format(m=mis_class))
-
-    def __call__(self, *args, **kwargs):
-        raise NotImplementedError

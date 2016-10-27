@@ -4,13 +4,15 @@
 import numpy as np
 
 
-def calculate_mse(e):
+def calculate_mse(y, tx, w):
     """Calculate the mse for vector e."""
+    e = y - tx.dot(w)
     return 1/2*np.mean(e**2)
 
 
-def calculate_mae(e):
+def calculate_mae(y, tx, w):
     """Calculate the mae for vector e."""
+    e = y - tx.dot(w)
     return np.mean(np.abs(e))
 
 
@@ -26,6 +28,10 @@ def compute_loss(y, tx, w, error='mse'):
         return calculate_mae(e)
     else:
         raise NotImplementedError
+
+
+def calculate_rmse(y, tx, w):
+    return np.sqrt(calculate_mse(y, tx, w) * 2)
 
 
 def loss_logistic(y, tx, w):
@@ -45,6 +51,10 @@ def compute_misclass_rate(y, tx, model):
 
 def get_loss_function(error='mse'):
     if error is 'mse':
-        return compute_loss
+        return calculate_mse
+    elif error is 'mae':
+        return calculate_mae
+    elif error is 'rmse':
+        return calculate_rmse
     elif error is 'logistic':
         return loss_logistic

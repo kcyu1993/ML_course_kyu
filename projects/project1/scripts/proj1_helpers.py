@@ -3,7 +3,7 @@
 import csv
 import numpy as np
 from projects.project1.scripts.data_clean import remove_outlier, fill_missing
-import os
+import os, sys
 from .helpers import standardize, split_data_general
 
 # train_filename = 'reduced_train.csv'
@@ -14,8 +14,13 @@ train_filename = 'mean_fill_train.csv'
 test_filename = 'mean_fill_test.csv'
 
 
+# train_filename = 'reduced_mean_fill_train.csv'
+# test_filename = 'reduced_mean_fill_test.csv'
+
+
 # train_filename = 'cleaned_train.csv'
 # test_filename = 'cleaned_test.csv'
+
 
 def get_dataset_dir():
     """
@@ -41,7 +46,13 @@ def get_plot_path(filename=''):
     plot_path = os.path.join(plot_dir, filename)
     return plot_path
 
+
 def get_filepath(file='train'):
+    '''
+    Get the file path,
+    :param file:        {train, test}
+    :return:            return absolute path to file
+    '''
     if file is 'train':
         return os.path.join(get_dataset_dir(), train_filename)
     elif file is 'test':
@@ -49,7 +60,16 @@ def get_filepath(file='train'):
     else:
         raise NotImplementedError
 
+
 def load_train_data(sub_sample=False, clean=True, original_y=False, validation=False):
+    """
+    wrapper for loading trainign data sample
+    :param sub_sample:      subsample flag
+    :param clean:           clean with mean-filled
+    :param original_y:      return original y label
+    :param validation:      validation flag. not implemented
+    :return:    [tuple:]    y, input_data, ids
+    """
     filename = train_filename
     if clean is True:
         filename = 'cleaned_' + filename
@@ -57,13 +77,23 @@ def load_train_data(sub_sample=False, clean=True, original_y=False, validation=F
     print('loading training data from {}'.format(path))
     return load_csv_data(path, sub_sample=sub_sample, original_y=original_y)
 
+
 def load_test_data(sub_sample=False, clean=True, original_y=False, validation=False):
+    """
+    wrapper for loading test data sample
+    :param sub_sample:      subsample flag
+    :param clean:           clean with mean-filled
+    :param original_y:      return original y label
+    :param validation:      validation flag. not implemented
+    :return:    [tuple:]    y, input_data, ids
+    """
     filename = test_filename
     if clean is True:
         filename = 'cleaned_' + filename
     path = os.path.join(get_dataset_dir(), filename)
     print("loading test data from {}".format(path))
     return load_csv_data(path, sub_sample=sub_sample, original_y=original_y)
+
 
 def load_train_data_neural(sub_sample=False, clean=True, validation=False, validation_ratio=0.3):
     filename = train_filename
@@ -84,6 +114,7 @@ def load_train_data_neural(sub_sample=False, clean=True, validation=False, valid
     te_data = zip(te_x, te_y)
     return tr_data, te_data
 
+
 def vectorize_result(y):
     """
     From [-1, 1] into binary codes.
@@ -96,6 +127,7 @@ def vectorize_result(y):
     elif y == 1:
         res[1] = 1.0
     return res
+
 
 def load_csv_data(data_path, sub_sample=False, original_y=False):
     """Loads data and returns y (class labels), tX (features) and ids (event ids)"""
@@ -141,6 +173,7 @@ def create_csv_submission(ids, y_pred, name):
         for r1, r2 in zip(ids, y_pred):
             writer.writerow({'Id':int(r1),'Prediction':int(r2)})
 
+
 def get_csv_header(data_path):
     """
     Get header line of a given csv file, for data manipulation purpose
@@ -153,19 +186,21 @@ def get_csv_header(data_path):
     print(header)
     return header
 
-def truncate_csv(line=1000):
+
+def truncate_csv(line=10000):
     y, x, ids = load_train_data(clean=False, original_y=True)
-    file_path = os.path.join(get_dataset_dir(), 'train.csv')
+    file_path = os.path.join(get_dataset_dir(), train_filename)
     header = get_csv_header(file_path)
-    truncate_filename = 'reduced_train.csv'
+    truncate_filename = 'reduced_' + train_filename
     truncate_path = os.path.join(get_dataset_dir(), truncate_filename)
     save_data_as_original_format(y[:line, ], ids[:line, ], x[:line, :], header, truncate_path)
     y, x, ids = load_test_data(clean=False, original_y=True)
-    file_path = os.path.join(get_dataset_dir(), 'test.csv')
+    file_path = os.path.join(get_dataset_dir(), test_filename)
     header = get_csv_header(file_path)
-    truncate_filename = 'reduced_test.csv'
+    truncate_filename = 'reduced_' + test_filename
     truncate_path = os.path.join(get_dataset_dir(), truncate_filename)
     save_data_as_original_format(y[:line, ], ids[:line, ], x[:line, :], header, truncate_path)
+
 
 def save_data_as_original_format(y, ids, x, headers, data_path):
     """
@@ -185,6 +220,7 @@ def save_data_as_original_format(y, ids, x, headers, data_path):
         for row in zip(ids, y, _x):
             _row = row[:2] + tuple(row[2])
             writer.writerow({header: r for header, r in zip(headers,_row)})
+
 
 def clean_save_data_without_invalid(filename):
     """
@@ -206,6 +242,7 @@ def clean_save_data_without_invalid(filename):
     cleaned_path = os.path.join(data_dir, cleaned_filename)
     save_data_as_original_format(y[tx_clean,], ids[tx_clean,], tX[tx_clean, :], header, cleaned_path)
 
+
 def clean_save_data_with_filling(filename, method='mean'):
     """
     Filling missing value with mean, median, mode, etc.
@@ -222,3 +259,16 @@ def clean_save_data_with_filling(filename, method='mean'):
     cleaned_name = 'mean_fill_' + filename
     cleaned_path = os.path.join(get_dataset_dir(), cleaned_name)
     save_data_as_original_format(y, ids, clean_tx, header, cleaned_path)
+
+
+class Logger(object):
+    def __init__(self, filename=(get_plot_path("log/Default.log"))):
+        self.terminal = sys.stdout
+        self.log = open(filename, "a")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+    def flush(self):
+        self.terminal.flush()

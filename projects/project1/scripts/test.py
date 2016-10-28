@@ -5,8 +5,8 @@ from projects.project1.scripts.proj1_helpers import *
 from projects.project1.scripts.data_clean import *
 from projects.project1.scripts.model import LogisticRegression
 from projects.project1.scripts.network import Network
-from projects.project1.scripts.test_logistic import test
-import os, datetime
+
+import os, datetime, sys
 
 
 def test_Network():
@@ -55,32 +55,91 @@ def test_logistic():
     e_time = datetime.datetime.now()
     print("Finish data reading in {s} seconds".
           format(s=(e_time - b_time).total_seconds()))
-    logistic = LogisticRegression((y, tX[0]), regularizer="Ridge", regularizer_p=0.1)
-    result = logistic.train(lr=0.05, batch_size=32, max_iters=1000)
+    logistic = LogisticRegression((y, tX[0]), regularizer="Lasso", regularizer_p=0.1)
+    result = logistic.train(lr=0.05, batch_size=128, max_iters=1000)
     print(result)
     # print(losses)
 
 
-def test_pca_logistic():
+def test_k_fold_logistic():
+    np.set_printoptions(precision=4)
     b_time = datetime.datetime.now()
     print('Begining reading data')
     DATA_TRAIN_PATH = get_filepath('train')
     y, tX, ids = load_csv_data(DATA_TRAIN_PATH)
     print("Finish loading in {s} seconds".
           format(s=(datetime.datetime.now() - b_time).total_seconds()))
-    tX, x_mean, x_std = standardize(tX)
-    nb_pc = 31
+    tX = remove_dimensions(tX)
+    tX = standardize(tX)
+
+    e_time = datetime.datetime.now()
+    print("Finish data reading in {s} seconds".
+          format(s=(e_time - b_time).total_seconds()))
+
+    # Lambda space
+    lambdas = np.logspace(-3, 1, 10)
+    logistic = LogisticRegression((y, tX[0]), regularizer='Lasso', regularizer_p=0.1)
+    best_lambda, (tr_err, te_err) = logistic.cross_validation(5, lambdas, lambda_name='regularizer_p', max_iters=6000)
+    print('best lambda {}'.format(best_lambda))
+    save_path = get_plot_path(test_k_fold_logistic.__name__)
+    tr_err = np.array(tr_err)
+    te_err = np.array(te_err)
+    np.save(save_path + "tr_err", tr_err)
+    np.save(save_path + "te_err", te_err)
+
+
+def test_pca_logistic():
+    """
+    According to the PCA first 3 component test, the selected index:
+        3,8,5,9,7,10,2,1,6,0,4
+        0-10
+    :return:
+    """
+
+
+    b_time = datetime.datetime.now()
+    print('Begining reading data')
+    DATA_TRAIN_PATH = get_filepath('train')
+    y, tX, ids = load_csv_data(DATA_TRAIN_PATH)
+
+    print("Finish loading in {s} seconds".
+          format(s=(datetime.datetime.now() - b_time).total_seconds()))
+    data, x_mean, x_std = standardize(tX)
+    print("test bias")
+    test_bias(y)
+    nb_pc = 5
     print("test the PCA with {} elements".format(nb_pc))
-    tX = pca(tX, nb_pc)
+    pcs, pc_data = pca(data, nb_pc, concatenate=False)
+
+    print("get interactions")
+    interaction = interactions(data, range(0, 10))
+    interaction, _, _ = standardize(interaction)
+    print("select first 10 data entry with pc data")
+    data = np.c_[data[:, 0:10], pc_data]
+
+    data = np.c_[data, interaction]
     # Begin the least square sgd
     e_time = datetime.datetime.now()
     print("Finish data reading in {s} seconds".
           format(s=(e_time - b_time).total_seconds()))
     # logistic = LogisticRegression((y, tX))
-    logistic = LogisticRegression((y, tX), regularizer="Lasso", regularizer_p=0.1)
-    result = logistic.train(lr=0.01, batch_size=32, max_iters=100)
+    logistic = LogisticRegression((y, data), regularizer="Lasso", regularizer_p=0.)
+    # result = logistic.train(lr=0.1, batch_size=32, max_iters=6000)
+    result = logistic.cross_validation(4, [0.01, 0.5, 0.1], 'regularizer_p',
+                                       lr=0.1, batch_size=32, max_iters=6000, early_stop=1000)
     print(result)
+
     # print(losses)
+
+
+def test_bias(inpt):
+    target = inpt
+    target[np.where(target < 0.5)] = 0
+    target[np.where(target >= 0.5)] = 1
+    count = np.sum(target)
+    print("positive {} total {} ratio {}".format(count, len(inpt), float(count) / len(inpt)))
+    return count
+
 
 
 def test_normal():
@@ -148,12 +207,13 @@ def box_cos(x, degree):
 if __name__ == '__main__':
     # test_box_cos()
     # test_normal()
+    # sys.stdout = Logger(get_plot_path("log/test_k_fold.log"))
     test_pca_logistic()
+    # truncate_csv(10000)
     # test_logistic()
 
-    # truncate_csv(1000)
+    # test_k_fold_logistic()
     # clean_save_data_with_filling(train_filename)
     # clean_save_data_with_filling(test_filename)
 
     # test_Network()
-    # test()

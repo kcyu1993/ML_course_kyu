@@ -8,6 +8,8 @@ from .helpers import batch_iter, build_k_indices
 from .learning_model import *
 from .regularizer import *
 
+from scipy.stats.mstats import normaltest
+
 class Model(object):
     def __init__(self, train_data, validation=None, initial_weight=None,
                  loss_function_name='mse', cal_weight='gradient',
@@ -20,14 +22,7 @@ class Model(object):
         self.train_x = train_data[1]
         self.train_y = train_data[0]
 
-        # Set validation here.
-        self.validation = False
-        if validation is not None:
-            self.valid_x = validation[1]
-            self.valid_y = validation[0]
-            self.validation = True
-            self.valid_losses = []
-            self.valid_misclass_rate = []
+        self.set_valid(validation)
 
         ''' Define the progress of history here '''
         self.losses = []
@@ -54,6 +49,21 @@ class Model(object):
         else:
             self.weights.append(np.random.rand(degree))
 
+    def set_valid(self, validation):
+        # Set validation here.
+        self.validation = False
+        self.valid_x = None
+        self.valid_y = None
+        self.valid_losses = None
+        self.valid_misclass_rate = None
+        if validation is not None:
+            (valid_y, valid_x) = validation
+            self.valid_x = valid_x
+            self.valid_y = valid_y
+            self.validation = True
+            self.valid_losses = []
+            self.valid_misclass_rate = []
+
     @abstractmethod
     def __call__(self, **kwargs):
         """Define the fit function and get prediction"""
@@ -72,11 +82,13 @@ class Model(object):
         ''' define normal equation method to calculate optimal weights'''
         raise NotImplementedError
 
-    def compute_weight(self, y, x, **kwargs):
+    def compute_weight(self, y, x, test_x=None, test_y=None, **kwargs):
         """ Return weight under given parameter """
         model = copy.copy(self)
         model.__setattr__('train_y', y)
         model.__setattr__('train_x', x)
+        if test_x is not None and test_y is not None:
+            model.set_valid((test_y, test_x))
         _kwargs = []
         for name, value in kwargs.items():
             # Recognize parameter "
@@ -114,8 +126,8 @@ class Model(object):
 
     """ Begining of the optimize Routines """
 
-    def sgd(self, lr=0.1, momentum=0.9, decay=0.5, max_iters=1000,
-            batch_size=128, early_stop=400, decay_intval=100):
+    def sgd(self, lr=0.01, momentum=0.9, decay=0.5, max_iters=1000,
+            batch_size=128, early_stop=500, decay_intval=100):
         """
         Define the SGD algorithm here
 
@@ -127,14 +139,14 @@ class Model(object):
         :param early_stop:  early_stop after no improvement
         :return: final weight vector
         """
-
+        np.set_printoptions(precision=4)
         w = self.weights[0]
         loss = self.compute_loss(self.train_y, self.train_x, w)
         best_loss = loss
         best_counter = 0
-        print("initial loss is {} ".format(loss))
+        # print("initial loss is {} ".format(loss))
         for epoch in range(max_iters):
-            print('Epoch {e} in {m}'.format(e=epoch+1, m=max_iters), end="\t")
+
             for batch_y, batch_x in batch_iter(self.train_y, self.train_x, batch_size):
                 grad = self.get_gradient(batch_y, batch_x, w)
                 w = w - lr * grad
@@ -149,13 +161,21 @@ class Model(object):
                 valid_mis_class = self.compute_metrics(self.valid_y, self.valid_x, w)
                 self.valid_losses.append(valid_loss)
                 self.valid_misclass_rate.append(valid_mis_class)
-                print('Train Loss {t_l}, Train mis-class {t_m}, valid loss {v_l}, valid mis-class {v_m}'.
-                      format(t_l=loss, t_m=mis_class, v_l=valid_loss, v_m=valid_mis_class))
-            else:
-                print('Train Loss {t_l}, Train mis-class {t_m}'.
-                      format(t_l=loss, t_m=mis_class))
+            # Display every 100 epoch
+            if (epoch + 1) % 50 == 0:
+                print('Epoch {e} in {m}'.format(e=epoch + 1, m=max_iters), end="\t")
+                if self.validation is True:
+                    # print('\tTrain Loss {0:0.4f}, \tTrain mis-class {0:0.4f}, '
+                    #       '\tvalid loss {0:0.4f}, \tvalid mis-class {0:0.4f}'.
+                    #       format(loss, mis_class, valid_loss, valid_mis_class))
+                    print('\tTrain Loss {}, \tTrain mis-class {}, '
+                          '\tvalid loss {}, \tvalid mis-class {}'.
+                          format(loss, mis_class, valid_loss, valid_mis_class))
+                else:
+                    print('\tTrain Loss {}, \tTrain mis-class {}'.
+                          format(loss, mis_class))
             # judge the performance
-            if loss < best_loss:
+            if best_loss - loss < 0.000001:
                 best_loss = loss
                 best_counter = 0
             else:
@@ -163,9 +183,9 @@ class Model(object):
                 if best_counter > early_stop:
                     print("Learning early stop since loss not improving for {} epoch.".format(best_counter))
                     break
-                if best_counter > decay_intval:
+                if best_counter % decay_intval == 0:
+                    print("weight decay by {}".format(decay))
                     lr *= decay
-                    best_counter = 0
         return self.weights[-1]
 
     def newton(self, lr=0.01, max_iters=100):
@@ -182,7 +202,7 @@ class Model(object):
         :param kwargs:          other parameters could pass into compute_weight
         :return: best_lambda, (training error, valid error)
         """
-
+        np.set_printoptions(precision=4)
         k_indices = build_k_indices(self.train_y, cv, seed)
         # define lists to store the loss of training data and test data
         err_tr = []
@@ -190,10 +210,11 @@ class Model(object):
         print("K-fold ({}) cross validation to examine [{}]".
               format(cv, lambdas))
         for lamb in lambdas:
-            print("For lambda: {}".format(lamb), end='')
+            print("For lambda: {}".format(lamb))
             _mse_tr = []
             _mse_te = []
             for k in range(cv):
+                print('Cross valid iteration {}'.format(k))
                 weight, loss_tr, loss_te = self._loop_cross_validation(self.train_y, self.train_x,
                                                                        k_indices, k,
                                                                        lamb, lambda_name, **kwargs)
@@ -239,7 +260,7 @@ class Model(object):
         # print("_loop_cv kwargs: ", end="")
         # print(kwargs)
 
-        weight = self.compute_weight(train_y, train_x, **kwargs)
+        weight = self.compute_weight(train_y, train_x, test_x, test_y, **kwargs)
 
         # Compute the metrics and return
         loss_tr = self.compute_loss(train_y, train_x, weight)

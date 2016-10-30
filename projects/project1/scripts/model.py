@@ -94,6 +94,7 @@ class Model(object):
             # Recognize parameter "
             if name is "regularizer_p":
                 model.__setattr__(name, value)
+                model.regularizer.set_parameter(value)
             else:
                 _kwargs.append((name, value))
         _kwargs = dict(_kwargs)
@@ -127,7 +128,7 @@ class Model(object):
     """ Begining of the optimize Routines """
 
     def sgd(self, lr=0.01, momentum=0.9, decay=0.5, max_iters=1000,
-            batch_size=128, early_stop=500, decay_intval=100):
+            batch_size=128, early_stop=150, decay_intval=50, decay_lim=9):
         """
         Define the SGD algorithm here
 
@@ -144,6 +145,7 @@ class Model(object):
         loss = self.compute_loss(self.train_y, self.train_x, w)
         best_loss = loss
         best_counter = 0
+        decay_counter = 0
         # print("initial loss is {} ".format(loss))
         for epoch in range(max_iters):
 
@@ -162,7 +164,7 @@ class Model(object):
                 self.valid_losses.append(valid_loss)
                 self.valid_misclass_rate.append(valid_mis_class)
             # Display every 100 epoch
-            if (epoch + 1) % 50 == 0:
+            if (epoch + 1) % 25 == 0:
                 print('Epoch {e} in {m}'.format(e=epoch + 1, m=max_iters), end="\t")
                 if self.validation is True:
                     # print('\tTrain Loss {0:0.4f}, \tTrain mis-class {0:0.4f}, '
@@ -175,7 +177,7 @@ class Model(object):
                     print('\tTrain Loss {}, \tTrain mis-class {}'.
                           format(loss, mis_class))
             # judge the performance
-            if best_loss - loss < 0.000001:
+            if best_loss - loss > 0.000001:
                 best_loss = loss
                 best_counter = 0
             else:
@@ -186,12 +188,16 @@ class Model(object):
                 if best_counter % decay_intval == 0:
                     print("weight decay by {}".format(decay))
                     lr *= decay
+                    decay_counter += 1
+                    if decay_counter > decay_lim:
+                        print("decay {} times, stop".format(decay_lim))
+                        break
         return self.weights[-1]
 
     def newton(self, lr=0.01, max_iters=100):
         raise NotImplementedError
 
-    def cross_validation(self, cv, lambdas, lambda_name, seed=1, **kwargs):
+    def cross_validation(self, cv, lambdas, lambda_name, seed=1, skip=False, plot=False, **kwargs):
         """
         Cross validation method to acquire the best prediction parameters.
         It will use the train_x y as data and do K-fold cross validation.
@@ -207,12 +213,14 @@ class Model(object):
         # define lists to store the loss of training data and test data
         err_tr = []
         err_te = []
+        weights = []
         print("K-fold ({}) cross validation to examine [{}]".
               format(cv, lambdas))
         for lamb in lambdas:
             print("For lambda: {}".format(lamb))
             _mse_tr = []
             _mse_te = []
+            _weight = []
             for k in range(cv):
                 print('Cross valid iteration {}'.format(k))
                 weight, loss_tr, loss_te = self._loop_cross_validation(self.train_y, self.train_x,
@@ -220,10 +228,14 @@ class Model(object):
                                                                        lamb, lambda_name, **kwargs)
                 _mse_tr += [loss_tr]
                 _mse_te += [loss_te]
+                _weight.append(weight)
+                if skip:
+                    break
             avg_tr = np.average(_mse_tr)
             avg_te = np.average(_mse_te)
             err_tr += [avg_tr]
             err_te += [avg_te]
+            weights.append(_weight)
             print("\t train error {}, \t valid error {}".
                   format(avg_tr, avg_te))
         # Select the best parameter during the cross validations.
@@ -233,7 +245,12 @@ class Model(object):
         min_err_te = np.argmin(err_te)
         print('Best err_te result {}, lambda {}'.
               format(err_te[min_err_te], lambdas[min_err_te]))
-        return lambdas[min_err_te], (err_tr, err_te)
+        if plot:
+            from projects.project1.scripts.plots import cross_validation_visualization
+            cross_validation_visualization(lambdas, err_tr, err_te, title=lambda_name,
+                                           error_name=self.loss_function_name)
+
+        return weights[min_err_te], lambdas[min_err_te], (err_tr, err_te)
 
     def _loop_cross_validation(self, y, x, k_indices, k, lamb, lambda_name, **kwargs):
         """
@@ -263,8 +280,8 @@ class Model(object):
         weight = self.compute_weight(train_y, train_x, test_x, test_y, **kwargs)
 
         # Compute the metrics and return
-        loss_tr = self.compute_loss(train_y, train_x, weight)
-        loss_te = self.compute_loss(test_y, test_x, weight)
+        loss_tr = self.compute_metrics(train_y, train_x, weight)
+        loss_te = self.compute_metrics(test_y, test_x, weight)
 
         return weight, loss_tr, loss_te
 
@@ -403,7 +420,7 @@ class LogisticRegression(Model):
         return pred
 
     def train(self, cross_valid=0, loss_function='logistic',
-              lr=0.001, momentum=0.9, decay=0.2, max_iters=100, batch_size=10, **kwargs):
+              lr=0.1, momentum=0.9, decay=0.5, max_iters=3000, batch_size=128, **kwargs):
         """ Make the default loss logistic """
         return super(LogisticRegression, self).train('sgd', cross_valid, loss_function,
                                                      lr=lr, momentum=momentum,

@@ -10,7 +10,7 @@ from __future__ import absolute_import
 from projects.project1.scripts.proj1_helpers import *
 from projects.project1.scripts.helpers import *
 from projects.project1.scripts.learning_model import *
-from projects.project1.scripts.data_clean import *
+from projects.project1.scripts.data_utils import *
 from projects.project1.scripts.model import *
 from projects.project1.scripts.network import Network
 import os, datetime

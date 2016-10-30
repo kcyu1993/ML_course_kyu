@@ -2,16 +2,16 @@
 """some helper functions for project 1."""
 import csv
 import numpy as np
-from projects.project1.scripts.data_clean import remove_outlier, fill_missing
+from projects.project1.scripts.data_utils import remove_outlier, fill_missing
 import os, sys
 from .helpers import standardize, split_data_general
 
-# train_filename = 'reduced_train.csv'
-# test_filename = 'reduced_test.csv'
+train_filename = 'reduced_train.csv'
+test_filename = 'reduced_test.csv'
 # train_filename = 'train.csv'
-# test_filename = 'train.csv'
-train_filename = 'mean_fill_train.csv'
-test_filename = 'mean_fill_test.csv'
+# test_filename = 'test.csv'
+# train_filename = 'mean_fill_train.csv'
+# test_filename = 'mean_fill_test.csv'
 
 
 # train_filename = 'reduced_mean_fill_train.csv'
@@ -78,7 +78,7 @@ def load_train_data(sub_sample=False, clean=True, original_y=False, validation=F
     return load_csv_data(path, sub_sample=sub_sample, original_y=original_y)
 
 
-def load_test_data(sub_sample=False, clean=True, original_y=False, validation=False):
+def load_test_data(sub_sample=False, clean=False, original_y=False, validation=False):
     """
     wrapper for loading test data sample
     :param sub_sample:      subsample flag

@@ -1,12 +1,13 @@
 # Fdb version 3
-["bibtex latex-template"] 1475653688 "latex-template.aux" "latex-template.bbl" "latex-template" 1475653690
+["bibtex latex-template"] 1475653688 "latex-template.aux" "latex-template.bbl" "latex-template" 1477835676
   "./IEEEtran.bst" 1475598296 59506 016987d9be15acf51cdd7252d40ecec2 ""
-  "latex-template.aux" 1475653689 4164 92db77cb898570c6f8054b010d38c3eb ""
+  "latex-template.aux" 1476955844 4164 92db77cb898570c6f8054b010d38c3eb ""
   "latex-template.bcf" 0 -1 0 ""
   "literature.bib" 1475598296 2345 c1e5563341dac1dffe521b5ca1df99f5 ""
   (generated)
   "latex-template.bbl"
-["pdflatex"] 1475653689 "latex-template.tex" "latex-template.pdf" "latex-template" 1475653690
+  "latex-template.blg"
+["pdflatex"] 1475653689 "latex-template.tex" "latex-template.pdf" "latex-template" 1477835676
   "/usr/local/texlive/2016/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/local/texlive/2016/texmf-dist/fonts/map/fontname/texfonts.map" 1272929888 3287 e6b82fe08f5336d4d5ebc73fb1152e87 ""
   "/usr/local/texlive/2016/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm" 1136768653 960 379cc0019370a9e0208a0a3f949f847a ""
@@ -74,13 +75,13 @@
   "/usr/local/texlive/2016/texmf.cnf" 1463979140 577 2938757e76f31531e65cc647e3507693 ""
   "IEEEtran.cls" 1475598296 206573 ea669a732e0e70bd5fe19ce932d9324a ""
   "denoised_signal_1d.png" 1475598296 66718 e515268b8bdd5354c5ba9857eef43b9d ""
-  "latex-template.aux" 1475653689 4164 92db77cb898570c6f8054b010d38c3eb ""
+  "latex-template.aux" 1476955844 4164 92db77cb898570c6f8054b010d38c3eb ""
   "latex-template.bbl" 1475653688 2556 82374b34cdefbc207068ef207593372d "bibtex latex-template"
-  "latex-template.out" 1475653689 973 8e34bb0547340618efe6c0ed1bcc6a10 ""
+  "latex-template.out" 1476955844 973 8e34bb0547340618efe6c0ed1bcc6a10 ""
   "latex-template.tex" 1475598296 12275 3a5f00de7bb55e68cf5abde5db99f8e9 ""
   "local_wdenoised_1d.png" 1475598296 38188 6f614f6ff448444d63af581411012c7b ""
   (generated)
   "latex-template.pdf"
+  "latex-template.log"
   "latex-template.aux"
   "latex-template.out"
-  "latex-template.log"

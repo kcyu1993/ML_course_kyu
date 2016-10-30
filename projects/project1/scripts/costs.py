@@ -41,10 +41,11 @@ def loss_logistic(y, tx, w):
     #
     # ***************************************************
     loss = 0
+    N = len(y)
     for index in range(len(tx)):
         e = np.dot(np.transpose(tx[index, :]), w)
         loss += np.log(1 + np.exp(e)) - y[index] * e
-    return loss
+    return loss / N
 
 def compute_misclass_rate(y, tx, model):
     pred_y = model(tx)

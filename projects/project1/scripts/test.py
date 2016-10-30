@@ -10,7 +10,6 @@ from model import LogisticRegression
 from learning_model import *
 from data_utils import *
 from helpers import *
-from proj1_helpers import *
 
 
 import os, datetime, sys
@@ -306,7 +305,7 @@ def test_final():
           format(s=(e_time - b_time).total_seconds()))
     y_pred = []
     for w in weight:
-        _y_pred = logistic.predict_proba(data, w)
+        _y_pred = logistic.__call__(data, w)
         y_pred += _y_pred
     y_pred = np.average(y_pred)
     y_pred[np.where(y_pred <= 0.5)] = -1
@@ -369,7 +368,7 @@ def test_pca_logistic2():
 
     y_pred = []
     for w in weight:
-        _y_pred = logistic.predict_proba(test_data, w)
+        _y_pred = logistic.__call__(test_data, w)
         y_pred.append(_y_pred)
     y_pred = np.average(y_pred, axis=0)
     y_pred[np.where(y_pred <= 0.5)] = -1
@@ -515,7 +514,7 @@ def test_cross_valid():
 
         # y_pred = []
         # for w in weight:
-        #     _y_pred = logistic.predict_proba(t_data, w)
+        #     _y_pred = logistic.__call__(t_data, w)
         #     y_pred.append(_y_pred)
         # y_pred = np.average(y_pred, axis=0)
         # y_pred[np.where(y_pred <= 0.5)] = -1

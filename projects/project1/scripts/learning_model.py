@@ -20,7 +20,7 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 from .gradient import *
 from .costs import *
-from .helpers import batch_iter
+from data_utils import batch_iter
 
 error = 'mse'
 
@@ -45,6 +45,7 @@ def ridge_regression(y, tx, lambda_):
     hes = np.dot(tx.T, tx) + lambda_ * G
     return np.linalg.solve(hes, np.dot(tx.T, y))
 
+
 def least_squares_GD(y, tx, gamma, max_iters):
     """Gradient descent algorithm."""
     # Define parameters to store w and loss
@@ -61,8 +62,10 @@ def least_squares_GD(y, tx, gamma, max_iters):
         losses.append(loss)
     return losses, ws
 
+
 def least_squares_SGD(y,tx,gamma,max_iters):
     return least_squares_SGD(y, tx, gamma, max_iters, 16)
+
 
 def least_squares_SGD(y, tx, gamma, max_iters, batch_size=16):
     print('Least square training with SGD with batch size {b}, learning rate {g}'.

@@ -1,11 +1,8 @@
 import numpy as np
 
+
 def gradient_least_square(y, tx, w, cost='mse'):
     """Compute the gradient."""
-    # ***************************************************
-    # INSERT YOUR CODE HERE
-    # TODO: compute gradient and loss
-    # ***************************************************
     if cost is 'mse':
         N = y.size
         e = y - np.dot(tx,w)
@@ -15,6 +12,7 @@ def gradient_least_square(y, tx, w, cost='mse'):
         return np.dot(tx.T, (-1) * np.sign(e)) / y.size
     else:
         raise Exception
+
 
 def stoch_gradient_least_square(batch_y, batch_x, w, cost='mse'):
     N = batch_y.shape[0]

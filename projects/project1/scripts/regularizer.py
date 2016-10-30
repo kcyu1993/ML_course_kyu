@@ -1,8 +1,9 @@
-
 import numpy as np
 
 class Regularizer(object):
-
+    """
+    Implement L1 L2 regularizer
+    """
     def get_parameter(self):
         return self.p
 
@@ -25,6 +26,7 @@ class Regularizer(object):
             return Lasso(parameter=parameter)
         else:
             raise NotImplementedError
+
 
 class Ridge(Regularizer):
 
@@ -55,6 +57,7 @@ class Ridge(Regularizer):
         G[0, 0] = 0
         hes = np.dot(tx.T, tx) + self.p * G
         return np.linalg.solve(hes, np.dot(tx.T, y))
+
 
 class Lasso(Regularizer):
 

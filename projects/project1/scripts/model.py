@@ -2,15 +2,25 @@ from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 import numpy as np
 import copy
-from .gradient import *
-from .costs import *
-from .helpers import batch_iter, build_k_indices
-from .learning_model import *
-from .regularizer import *
+from gradient import *
+from costs import *
+from data_utils import batch_iter, build_k_indices
+from learning_model import *
+from regularizer import *
 
 from scipy.stats.mstats import normaltest
 
+
 class Model(object):
+    """
+    Machine learning model engine
+    Implement the optimizers
+        sgd
+        normal equations
+        cross-validation of given parameters
+    Support:
+        L1, L2 normalization
+    """
     def __init__(self, train_data, validation=None, initial_weight=None,
                  loss_function_name='mse', cal_weight='gradient',
                  regularizer=None, regularizer_p=None):
@@ -100,8 +110,8 @@ class Model(object):
         _kwargs = dict(_kwargs)
         if model.calculate_weight is 'gradient':
             return model.sgd(**_kwargs)
-        elif model.calculate_weight is 'newton':
-            return model.newton(**_kwargs)
+        # elif model.calculate_weight is 'newton':
+        #     return model.newton(**_kwargs)
         elif model.calculate_weight is 'normalequ':
             return model.normalequ(**_kwargs)
 
@@ -110,23 +120,33 @@ class Model(object):
         Get the training history of current model
         :return: list as [iterations, [losses], [weights], [mis_class]]
         """
+        if self.validation:
+            return self.iterations, (self.losses, self.valid_losses), \
+                   (self.weights), (self.misclass_rate, self.valid_misclass_rate)
         return self.iterations, self.losses, self.weights, self.misclass_rate
 
-    def train(self, optimizer='sgd', cross_valid=0, loss_function='mse', **kwargs):
+    def train(self, optimizer='sgd', loss_function='mse', **kwargs):
+        """
+        Train function to perform one time training
+        Will based optimizer to select.
+            TODO: Would add 'newton' in the future
+        This
+        :param optimizer: only support 'sgd'
+        :param loss_function: loss_function name {mse, mae, logistic}
+        :param kwargs: passed into sgd
+        :return: best weight
+        """
         self.loss_function = get_loss_function(loss_function)
         self.loss_function_name = loss_function
-        if cross_valid == 0:
-            if optimizer is 'sgd':
-                self.sgd(**kwargs)
-            elif optimizer is 'gd':
-                self.gd()
-        elif cross_valid > 0:
-            self.cross_validadtion(cross_valid)
+
+        if optimizer is 'sgd':
+            self.sgd(**kwargs)
 
         return self.weights[-1]
 
-    """ Begining of the optimize Routines """
-
+    """===================================="""
+    """ Beginning of the optimize Routines """
+    """===================================="""
     def sgd(self, lr=0.01, momentum=0.9, decay=0.5, max_iters=1000,
             batch_size=128, early_stop=150, decay_intval=50, decay_lim=9):
         """
@@ -163,7 +183,7 @@ class Model(object):
                 valid_mis_class = self.compute_metrics(self.valid_y, self.valid_x, w)
                 self.valid_losses.append(valid_loss)
                 self.valid_misclass_rate.append(valid_mis_class)
-            # Display every 100 epoch
+            # Display every 25 epoch
             if (epoch + 1) % 25 == 0:
                 print('Epoch {e} in {m}'.format(e=epoch + 1, m=max_iters), end="\t")
                 if self.validation is True:
@@ -195,6 +215,7 @@ class Model(object):
         return self.weights[-1]
 
     def newton(self, lr=0.01, max_iters=100):
+        # TODO: implement newton method later
         raise NotImplementedError
 
     def cross_validation(self, cv, lambdas, lambda_name, seed=1, skip=False, plot=False, **kwargs):
@@ -205,8 +226,11 @@ class Model(object):
         :param lambdas:         array of lambdas to be validated
         :param lambda_name:     the lambda name tag
         :param seed:            random seed
+        :param skip:            skip the cross validation, only valid 1 time
+        :param plot             plot cross-validation plot, if machine not support
+                                matplotlib.pyplot, set to false.
         :param kwargs:          other parameters could pass into compute_weight
-        :return: best_lambda, (training error, valid error)
+        :return: best weights, best_lambda, (training error, valid error)
         """
         np.set_printoptions(precision=4)
         k_indices = build_k_indices(self.train_y, cv, seed)
@@ -246,7 +270,7 @@ class Model(object):
         print('Best err_te result {}, lambda {}'.
               format(err_te[min_err_te], lambdas[min_err_te]))
         if plot:
-            from projects.project1.scripts.plots import cross_validation_visualization
+            from plots import cross_validation_visualization
             cross_validation_visualization(lambdas, err_tr, err_te, title=lambda_name,
                                            error_name=self.loss_function_name)
 
@@ -255,12 +279,13 @@ class Model(object):
     def _loop_cross_validation(self, y, x, k_indices, k, lamb, lambda_name, **kwargs):
         """
         Single loop of cross validation
-        :param y:
-        :param x:
-        :param k_indices:
-        :param k:
-        :param lamb:
-        :return:
+        :param y:           train labels
+        :param x:           train data
+        :param k_indices:   indices array
+        :param k:           number of cross validations
+        :param lamb:        lambda to use
+        :param lambda_name: lambda_name to pass into compute weight
+        :return:            weight, mis_tr, mis_te
         """
         train_ind = np.concatenate((k_indices[:k], k_indices[k + 1:]), axis=0)
         train_ind = np.reshape(train_ind, (train_ind.size,))
@@ -301,6 +326,7 @@ class Model(object):
 
     def compute_loss(self, y, x, weight):
         return self.loss_function(y, x, weight)
+
 
 class LinearRegression(Model):
     """ Linear regression model """
@@ -386,7 +412,7 @@ class LogisticRegression(Model):
         # Set predicted label
         self.pred_label = [-1, 1]
 
-    def predict_proba(self, x, weight=None):
+    def __call__(self, x, weight=None):
         """Define the fit function and get prediction"""
         if weight is None:
             weight = self.weights[-1]
@@ -399,6 +425,7 @@ class LogisticRegression(Model):
                + self.regularizer.get_gradient(weight)
 
     def get_hessian(self, y, x, weight):
+        # TODO: implement hessian for newton method
         raise NotImplementedError
 
     def predict(self, x, weight=None, cutting=0.5):

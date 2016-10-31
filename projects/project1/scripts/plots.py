@@ -56,6 +56,23 @@ def cross_validation_visualization(params, mse_tr, mse_te, params_name='', title
     plt.show()
 
 
+def cross_validation_visualization_due(params, mse_tr, mse_te, param2, tr2, te2, params_name='', prname2='', title='',
+                                       error_name=''):
+    """visualization the curves of mse_tr and mse_te."""
+    plt.semilogx(params, mse_tr, marker=".", color='r', label='train error ' + params_name, linestyle='solid')
+    plt.semilogx(params, mse_te, marker=".", color='r', label='test error ' + params_name, linestyle='dashed')
+    plt.semilogx(param2, tr2, marker=".", color='b', label='train error ' + prname2, linestyle='solid')
+    plt.semilogx(param2, te2, marker=".", color='b', label='test error ' + prname2, linestyle='dashed')
+    plt.xlabel("Parameters: " + params_name + " " + prname2)
+    plt.ylabel("Error: " + error_name)
+    plt.title("cross validation " + title)
+    plt.legend(loc=2)
+    plt.grid(True)
+    plt.savefig(get_plot_path("cross_validation_" + title))
+    plt.show()
+
+
+
 def bias_variance_decomposition_visualization(models, rmse_tr, rmse_te, model_names=[]):
     """visualize the bias variance decomposition."""
     rmse_tr_mean = np.expand_dims(np.mean(rmse_tr, axis=0), axis=0)

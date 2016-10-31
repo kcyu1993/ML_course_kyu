@@ -345,8 +345,8 @@ def compose_interactions_for_transforms(data):
     :param data:
     :return:
     """
-    log_indices = [1, 3, 8, 9, 10, 13]
-    miss_indices = [4, 5, 6, 12, 26, 27, 28, 22]
+    log_indices = [1, 3, 4, 5, 8, 9, 10, 13, 16, 19, 21, 23, 26, 29]
+    # miss_indices = [12, 26, 27, 28]
 
     mean_fill = fill_missing(data)
 
@@ -357,17 +357,18 @@ def compose_interactions_for_transforms(data):
     log_data = log_transform(mean_fill, log_indices)
 
     # Delete original missing over 75% and log transformed data.
-    _mean_fill = np.delete(mean_fill, log_indices + miss_indices, axis=1)
+    _mean_fill = np.delete(mean_fill, log_indices + [22], axis=1)
     _mean_fill, _, _ = standardize(_mean_fill, intercept=False)
 
     # Build polynomial up to 3
-    poly = polynomial_tranform(_mean_fill, degrees=[2])
+    log_data = np.c_[log_data, _mean_fill]
+    poly = polynomial_tranform(log_data, degrees=[2])
 
     # PCA
     _, data_pca = pca_transform(mean_fill, nbNewColumn=10, concatenate=False)
 
     # interactions of data and polynomial up to 3
-    prepare_inter = np.c_[_mean_fill, log_data, poly]
+    prepare_inter = np.c_[log_data, poly]
     inter_data = interactions(prepare_inter)
 
     valid_data = np.c_[valid_data, _mean_fill, poly, inter_data, data_pca]

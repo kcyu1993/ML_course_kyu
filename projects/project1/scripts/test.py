@@ -405,7 +405,7 @@ def test_baseline():
 
 
 def test_data_model():
-    title = 'complex_full_before_ddl'
+    title = 'complex_full_before_ddl_interactions_full'
     print("Base line testing for model " + title)
     b_time = datetime.datetime.now()
     print('Beginning reading data')
@@ -453,8 +453,8 @@ def test_data_model():
     t_data = compose_interactions_for_transforms(test_x)
 
     # Test 1 Ridge 0.1
-    logistic = LogisticRegression((y, data), regularizer='Ridge', regularizer_p=0.2)
-    weight = logistic.train(lr=0.1, decay=0.5, max_iters=2000, early_stop=1000)
+    logistic = LogisticRegression((y, data), regularizer='Ridge', regularizer_p=0.1)
+    weight = logistic.train(lr=0.01, decay=0.5, max_iters=2000, early_stop=1000, decay_intval=100)
     # weight, _, _ = logistic.cross_validation(4, [0.1, 0.5, 0.05], 'regularizer_p', max_iters=2000)
     pred_label = predict_labels(weight, t_data)
     create_csv_submission(test_ids, pred_label, get_dataset_dir() +
@@ -462,7 +462,7 @@ def test_data_model():
 
     # Test 2 Lasso 0.1
     logistic = LogisticRegression((y, data), regularizer='Lasso', regularizer_p=0.1)
-    weight = logistic.train(lr=0.01, decay=0.5, max_iters=2000, early_stop=1000)
+    weight = logistic.train(lr=0.01, decay=0.5, max_iters=2000, early_stop=1000, decay_intval=100)
     # weight, _, _ = logistic.cross_validation(4, [0.1, 0.5, 0.05], 'regularizer_p', max_iters=2000)
     pred_label = predict_labels(weight, t_data)
     create_csv_submission(test_ids, pred_label, get_dataset_dir() +

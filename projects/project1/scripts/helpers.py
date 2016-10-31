@@ -7,11 +7,11 @@ import sys
 import datetime
 from data_utils import standardize, split_data_general, remove_outlier, fill_missing
 
-train_filename = 'reduced_train.csv'
-test_filename = 'reduced_test.csv'
+# train_filename = 'reduced_train.csv'
+# test_filename = 'reduced_test.csv'
 
-# train_filename = 'train.csv'
-# test_filename = 'test.csv'
+train_filename = 'train.csv'
+test_filename = 'test.csv'
 
 reduce_train_filename = 'reduced_train.csv'
 reduce_test_filename = 'reduced_test.csv'

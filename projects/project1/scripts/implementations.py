@@ -16,7 +16,8 @@ Available optimizer:
         Supported more features like, momentum,
 '''
 from __future__ import absolute_import
-from abc import ABCMeta, abstractmethod
+
+import datetime
 import numpy as np
 from model import *
 from gradient import *
@@ -27,25 +28,72 @@ error = 'mse'
 
 
 def least_squares(y, tx):
-    return np.linalg.solve(np.dot(tx.T, tx), np.dot(tx.T, y))
+    """calculate the least squares solution."""
+    A = np.dot(tx.T, tx)
+    b = np.dot(tx.T, y)
+    # Compute solution
+    w_opt = np.linalg.solve(A, b)
+    # Compute loss
+    e = y - (tx).dot(w_opt)
+    N = len(e)
+    MSE_opt = 1 / (2 * N) * np.dot(e.T, e)
+    return w_opt, MSE_opt
 
 
 def least_squares_GD(y, tx, gamma, max_iters):
     """Gradient descent algorithm."""
+    # Initialisation
+    D = tx.shape[1]  # number of features
+    initial_w = np.zeros([D, 1])
+
+    # Start gradient descent.
+    start_time = datetime.datetime.now()
+    gradient_losses, ws = gradient_descent(y, tx, initial_w, gamma, max_iters)
+    end_time = datetime.datetime.now()
+
+    # Print result
+    exection_time = (end_time - start_time).total_seconds()
+    print("Gradient Descent: execution time={t:.3f} seconds".format(t=exection_time))
+
+    # The last element is the optimum one
+    return ws[-1]
 
 
 def least_squares_SGD(y, tx, gamma, max_iters):
     """Gradient descent algorithm."""
+    # Initialisation
+    D = tx.shape[1]  # number of features
+    initial_w = np.zeros([D, 1])
+    batch_size = 1
+    # Start SGD.
+    start_time = datetime.datetime.now()
+    gradient_losses, ws = stochastic_gradient_descent(
+        y, tx, initial_w, batch_size, gamma, max_iters)
+    end_time = datetime.datetime.now()
+    # Print result
+    exection_time = (end_time - start_time).total_seconds()
+    print("SGD: execution time={t:.3f} seconds".format(t=exection_time))
+    # The last element is the optimum one
+    return ws[-1]
 
 
-def ridge_regression(y, tx, lambda_):
+def ridge_regression(y, tx, lamb):
     """implement ridge regression."""
-    # ***************************************************
-    # INSERT YOUR CODE HERE
-    # ridge regression:
-    # ***************************************************
-    model = LinearRegression((tx, y), regularizer='Ridge', regularizer_p=lambda_)
-    return model.train()
+
+    D = tx.shape[1]  # number of features
+    N = len(y)  # Number of measurements
+
+    A = np.dot(tx.T, tx) + 2 * N * lamb * np.eye(D)
+    b = np.dot(tx.T, y)
+
+    # Obtain optimal solution
+    w_opt = np.linalg.solve(A, b)
+
+    # Compute the loss
+    e = y - np.dot(tx, w_opt)
+    MSE = 1 / (2 * N) * np.dot(e.T, e)
+    RMSE = np.sqrt(2 * MSE)
+    return w_opt, RMSE
 
 
 def logistic_regression(y, tx, gamma, max_iters):

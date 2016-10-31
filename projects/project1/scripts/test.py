@@ -1,34 +1,16 @@
-from __future__ import absolute_import
-# from projects.project1.scripts.proj1_helpers import *
-# from projects.project1.scripts.helpers import *
-# from projects.project1.scripts.learning_model import *
-# from projects.project1.scripts.data_clean import *
-# from projects.project1.scripts.model import LogisticRegression
-# from projects.project1.scripts.network import Network
+"""
+This python file contains every test case based on our logistic
+regression model.
+The best selected model is put inside the implementations.py
+You could skip this class.
+"""
 
-from model import LogisticRegression
-from learning_model import *
+from __future__ import absolute_import
 from data_utils import *
 from helpers import *
-
-
-import os, datetime, sys
-
-
-# def test_Network():
-#     training_data, valid_data = load_train_data_neural(validation=True, validation_ratio=0.1, clean=False)
-#     network = Network([30, 20, 2])
-#     result = network.SGD(training_data=training_data, epochs=50, lr=0.1, mini_batch_size=32,
-#                          momentum=0.8, regular_p=0.1, no_improve=10, halve_learning_rate=16,
-#                          evaluation_data=valid_data,
-#                          monitor_evaluation_accuracy=True, monitor_evaluation_cost=True,
-#                          monitor_training_accuracy=True, monitor_training_cost=True)
-#     _, test_data, ids = load_test_data(clean=False)
-#
-#     print("predicting the test data")
-#     test_predict = network.predict(test_data.T)
-#     print("finish {} prediction and saving results".format(len(test_predict)))
-#     create_csv_submission(ids, test_predict, 'neural-mean_fill_output.csv')
+from implementations import *
+from model import LogisticRegression
+import os, datetime
 
 
 def test_lsq_sgd_with_cleand_data():
@@ -48,6 +30,7 @@ def test_lsq_sgd_with_cleand_data():
     # losses, weights = least_squares_SGD(y, tX[0],
     #                                     gamma=0.1, max_iters=10, batch_size=16)
     # print(losses)
+
 
 def test_logistic():
     b_time = datetime.datetime.now()
@@ -477,22 +460,59 @@ def test_data_model():
                           '/submission/removed_outlier_{}.csv'.format(title))
 
 
+def test_implementations():
+    title = 'final baseline for '
+    print("Base line testing for model " + title)
+    b_time = datetime.datetime.now()
+    print('Beginning reading data')
+    DATA_TRAIN_PATH = get_filepath('train')
+    y, tX, ids = load_csv_data(DATA_TRAIN_PATH)
+    print("Finish loading in {s} seconds".
+          format(s=(datetime.datetime.now() - b_time).total_seconds()))
+    _, test_x, test_ids = load_test_data(clean=False)
 
+    data = standardize(tX)[0]
+    t_data = standardize(test_x)[0]
+
+    # Test 1 Linear least squares
+    weight, _ = least_squares(y, tX)
+    pred_label = predict_labels(weight, t_data)
+    create_csv_submission(test_ids, pred_label, get_dataset_dir() +
+                          '/submission/{}.csv'.format(title + 'least_squares'))
+
+    # Test 2 Least_squares_GD
+    weight = least_squares_GD(y, tX, gamma=0.01, max_iters=1000)
+    pred_label = predict_labels(weight, t_data)
+    create_csv_submission(test_ids, pred_label, get_dataset_dir() +
+                          '/submission/{}.csv'.format(title + 'least_squaresGD'))
+
+    # Test 3 Least_squares_SGD
+    weight = least_squares_SGD(y, tX, gamma=0.01, max_iters=1000)
+    pred_label = predict_labels(weight, t_data)
+    create_csv_submission(test_ids, pred_label, get_dataset_dir() +
+                          '/submission/{}.csv'.format(title + 'least_squaresSGD'))
+
+    # Test 4 Ridge_regression
+    weight, _ = ridge_regression(y, tX, lamb=0.00001)
+    pred_label = predict_labels(weight, t_data)
+    create_csv_submission(test_ids, pred_label, get_dataset_dir() +
+                          '/submission/{}.csv'.format(title + 'Ridge_regression'))
 
 if __name__ == '__main__':
     # test_box_cos()
     # test_normal()
     # sys.stdout = Logger(get_plot_path("log/test_k_fold.log"))
     # test_pca_logistic2()
-    # truncate_csv(10000)
+    truncate_csv(10000)
     # test_complex()
     # test_draw()
     # test_final()
     # test_logistic()
     # test_baseline()
-    # test_data_model()
     test_data_model()
+    # test_data_model()
     # test_cross_valid()
+    # test_implementations()
     # test_k_fold_logistic()
     # clean_save_data_with_filling(train_filename)
     # clean_save_data_with_filling(test_filename)

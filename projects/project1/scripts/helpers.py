@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-"""some helper functions for project 1."""
+"""some helper functions for project 1.
+The default structure of project is described in README.md file.
+It provide specific helper function to retrieve the absolute path
+to datafile, in order to support multi-machine working.
+"""
 import csv
 import numpy as np
 import os
@@ -7,27 +11,23 @@ import sys
 import datetime
 from data_utils import standardize, split_data_general, remove_outlier, fill_missing
 
-# train_filename = 'reduced_train.csv'
-# test_filename = 'reduced_test.csv'
-
-train_filename = 'train.csv'
-test_filename = 'test.csv'
+# ====================
+# Support   test.py
+# ====================
+reduced = True
+if reduced:
+    train_filename = 'reduced_train.csv'
+    test_filename = 'reduced_test.csv'
+else:
+    train_filename = 'train.csv'
+    test_filename = 'test.csv'
 
 reduce_train_filename = 'reduced_train.csv'
 reduce_test_filename = 'reduced_test.csv'
 
-# train_filename = 'mean_fill_train.csv'
-# test_filename = 'mean_fill_test.csv'
-
-
-# train_filename = 'reduced_mean_fill_train.csv'
-# test_filename = 'reduced_mean_fill_test.csv'
-
-
-# train_filename = 'cleaned_train.csv'
-# test_filename = 'cleaned_test.csv'
-
-
+"""========================="""
+"""    data dir operation   """
+"""========================="""
 def get_dataset_dir():
     """
     Utility function: get the absolute dataset directory based on project dir.
@@ -72,9 +72,11 @@ def get_filepath(file='train'):
 
 
 def save_numpy_array(*args, path='plot', names=[], title=''):
-    """ Save numpy array """
+    """ Save numpy array, default to plot folder """
     if path is 'plot':
         path = get_plot_path('nparray/')
+    if not os.path.exists(path):
+        os.mkdir(path)
 
     for name, arr in zip(names, args):
         np.save(path + '_' + title + name, arr)
@@ -114,40 +116,6 @@ def load_test_data(sub_sample=False, clean=False, original_y=False, validation=F
     return load_csv_data(path, sub_sample=sub_sample, original_y=original_y)
 
 
-def load_train_data_neural(sub_sample=False, clean=True, validation=False, validation_ratio=0.3):
-    filename = train_filename
-    if clean is True:
-        filename = 'cleaned_' + filename
-    path = os.path.join(get_dataset_dir(), filename)
-    tr_y, tr_data, ids = load_csv_data(path, sub_sample=sub_sample, original_y=False)
-    tr_data, tr_mean, tr_std = standardize(tr_data, intercept=False)
-    dim = tr_data.shape[1]
-    training_inputs = [np.reshape(x, (dim, 1)) for x in tr_data]
-    training_results = [vectorize_result(y) for y in tr_y]
-    if validation is False:
-        return zip(training_inputs, training_results)
-    [tr_x, tr_y], [te_x, te_y] = split_data_general(training_inputs, training_results, ratio=[1 - validation_ratio])
-
-    print("Spliting data into training and validation with size {tr}, {te}".format(tr=len(tr_x), te=len(te_x)))
-    tr_data = zip(tr_x, tr_y)
-    te_data = zip(te_x, te_y)
-    return tr_data, te_data
-
-
-def vectorize_result(y):
-    """
-    From [-1, 1] into binary codes.
-    :param y: either -1 or 1
-    :return: [1, 0] for -1, [0, 1] for 1
-    """
-    res = np.zeros((2, 1))
-    if y == -1:
-        res[0] = 1.0
-    elif y == 1:
-        res[1] = 1.0
-    return res
-
-
 def load_csv_data(data_path, sub_sample=False, original_y=False):
     """Loads data and returns y (class labels), tX (features) and ids (event ids)"""
     y = np.genfromtxt(data_path, delimiter=",", skip_header=1, dtype=str, usecols=1)
@@ -170,6 +138,7 @@ def load_csv_data(data_path, sub_sample=False, original_y=False):
     else:
         return y, input_data, ids
 
+
 def predict_labels(weights, data):
     """Generates class predictions given weights, and a test data matrix"""
     y_pred = np.dot(data, weights)
@@ -177,6 +146,7 @@ def predict_labels(weights, data):
     y_pred[np.where(y_pred > 0)] = 1
     
     return y_pred
+
 
 def create_csv_submission(ids, y_pred, name):
     """
@@ -207,6 +177,7 @@ def get_csv_header(data_path):
 
 
 def truncate_csv(line=10000):
+    """Truncate csv to the first $line lines """
     y, x, ids = load_train_data(clean=False, original_y=True)
     file_path = os.path.join(get_dataset_dir(), train_filename)
     header = get_csv_header(file_path)
@@ -281,6 +252,10 @@ def clean_save_data_with_filling(filename, method='mean'):
 
 
 class Logger(object):
+    """
+    Log the even while produce output to the terminal.
+    For easy tracking of training progress
+    """
     def __init__(self, filename=(get_plot_path("log/Default.log"))):
         self.terminal = sys.stdout
         self.log = open(filename, "a")

@@ -1,6 +1,11 @@
+"""
+This file consists of operation related to gradient descent generally,
+would be referenced by model.py and implementations.py
+"""
 import numpy as np
 from data_utils import batch_iter
 from costs import compute_loss
+
 
 
 def compute_gradient(y, tx, w):
@@ -13,6 +18,22 @@ def compute_gradient(y, tx, w):
     return gradient
 
 
+def gradient_least_square(y, tx, w, cost='mse'):
+    """Compute the gradient."""
+    # ***************************************************
+    # INSERT YOUR CODE HERE
+    # TODO: compute gradient and loss
+    # ***************************************************
+    if cost is 'mse':
+        N = y.size
+        e = y - np.dot(tx, w)
+        return -1 / N * np.dot(tx.T, e)
+    elif cost is 'mae':
+        e = y - np.dot(tx, w)
+        return np.dot(tx.T, (-1) * np.sign(e)) / y.size
+    else:
+        raise Exception
+
 def gradient_descent(y, tx, initial_w, gamma, max_iters):
     """Gradient descent algorithm."""
     threshold = 1e-3  # determines convergence. To be tuned
@@ -21,16 +42,17 @@ def gradient_descent(y, tx, initial_w, gamma, max_iters):
     ws = [initial_w]
     losses = []
     w = initial_w
+    method = 'mse'
     for n_iter in range(max_iters):
-        current_grad = compute_gradient(y, tx, w)
-        current_loss = compute_loss(y, tx, w)
+        current_grad = gradient_least_square(y, tx, w)
+        current_loss = compute_loss(y, tx, w, method)
         # Moving in the direction of negative gradient
         w = w - gamma * current_grad
         # Store w and loss
-        ws.append(np.copy(w))
+        ws.append(w)
         losses.append(current_loss)
         # Convergence criteria
-        if len(current_loss) > 1 and np.abs(current_loss[-1] - current_loss[-2]) < threshold:
+        if len(losses) > 1 and np.abs(current_loss - losses[-1]) < threshold:
             break
         print("Gradient Descent({bi}): loss={l}".format(
             bi=n_iter, l=current_loss))
@@ -56,7 +78,7 @@ def stochastic_gradient_descent(
             ws.append(np.copy(w))
             losses.append(current_loss)
             # Convergence criteria
-            if len(current_loss) > 1 and np.abs(current_loss[-1] - current_loss[-2]) < threshold:
+            if len(losses) > 1 and np.abs(current_loss - losses[-1]) < threshold:
                 break
         print("Gradient Descent({bi}): loss={l}".format(
             bi=n_iter, l=current_loss))

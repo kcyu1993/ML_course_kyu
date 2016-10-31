@@ -1,20 +1,38 @@
 from __future__ import absolute_import
 
+from abc import ABCMeta, abstractmethod
 import copy
 from data_utils import build_k_indices
 from learning_model import *
 from regularizer import *
 from helpers import save_numpy_array
+import numpy as np
 
 class Model(object):
     """
+    Author: Kaicheng Yu
+
     Machine learning model engine
     Implement the optimizers
         sgd
         normal equations
         cross-validation of given parameters
+    Abstract method:
+        __call__        produce the raw prediction, use the latest weight obtained by training
+        predict         produce prediction values, could take weight as input
+        get_gradient    define gradient here, including the gradient for regularizer
+        normalequ       define normal equations
+
     Support:
         L1, L2 normalization
+
+    Due to the distribution of work, only LogisticRegression is fully tested for
+    fitting data, and cross-validation.
+    LinearRegression model should also work but not fully tested.
+
+    The goal of this class is not only specific to this learning project, but also for reusable and scalable
+    to other problems, models.
+
     """
     def __init__(self, train_data, validation=None, initial_weight=None,
                  loss_function_name='mse', cal_weight='gradient',
@@ -142,13 +160,14 @@ class Model(object):
     """===================================="""
     """ Beginning of the optimize Routines """
     """===================================="""
-    def sgd(self, lr=0.01, momentum=0.9, decay=0.5, max_iters=1000,
+
+    def sgd(self, lr=0.01, decay=0.5, max_iters=1000,
             batch_size=128, early_stop=150, decay_intval=50, decay_lim=9):
         """
         Define the SGD algorithm here
+            Implementing weight decay, early stop.
 
         :param lr:          learning rate
-        :param momentum:    momentum TODO
         :param decay:       weight decay after fix iterations
         :param max_iters:   maximum iterations
         :param batch_size:  batch_size
@@ -217,13 +236,14 @@ class Model(object):
         """
         Cross validation method to acquire the best prediction parameters.
         It will use the train_x y as data and do K-fold cross validation.
+
         :param cv:              cross validation times
         :param lambdas:         array of lambdas to be validated
         :param lambda_name:     the lambda name tag
         :param seed:            random seed
         :param skip:            skip the cross validation, only valid 1 time
-        :param plot             plot cross-validation plot, if machine not support
-                                matplotlib.pyplot, set to false.
+        :param plot             plot cross-validation plot, if machine does not
+                                support matplotlib.pyplot, set to false.
         :param kwargs:          other parameters could pass into compute_weight
         :return: best weights, best_lambda, (training error, valid error)
         """
@@ -286,8 +306,8 @@ class Model(object):
         """
         train_ind = np.concatenate((k_indices[:k], k_indices[k + 1:]), axis=0)
         train_ind = np.reshape(train_ind, (train_ind.size,))
-
         test_ind = k_indices[k]
+
         # Note: different from np.ndarray, tuple is name[index,]
         # ndarray is name[index,:]
         train_x = x[train_ind,]
@@ -296,8 +316,6 @@ class Model(object):
         test_y = y[test_ind,]
         # Insert one more kwargs item
         kwargs[lambda_name] = lamb
-        # print("_loop_cv kwargs: ", end="")
-        # print(kwargs)
 
         weight = self.compute_weight(train_y, train_x, test_x, test_y, **kwargs)
 
@@ -323,56 +341,6 @@ class Model(object):
 
     def compute_loss(self, y, x, weight):
         return self.loss_function(y, x, weight)
-
-
-class LinearRegression(Model):
-    """ Linear regression model """
-
-    def __init__(self, train, validation=None, initial_weight=None,
-                 regularizer=None, regularizer_p=None,
-                 loss_function_name='mse', calculate_weight='normalequ'):
-        # Initialize the super class with given data.
-        super(LinearRegression, self).__init__(train, validation,
-                                               initial_weight=initial_weight,
-                                               loss_function_name=loss_function_name,
-                                               cal_weight=calculate_weight,
-                                               regularizer=regularizer,
-                                               regularizer_p=regularizer_p)
-
-    def __call__(self, x):
-        return np.dot(x, self.weights[-1])
-
-    def get_gradient(self, batch_y, batch_x, weight):
-        N = batch_y.shape[0]
-        grad = np.empty(len(weight))
-        for index in range(N):
-            _y = batch_y[index]
-            _x = batch_x[index]
-            grad = grad + gradient_least_square(_y, _x, weight, self.loss_function_name)
-        grad /= N
-        grad += self.regularizer.get_gradient(weight)
-        return grad
-
-    def predict(self, x, weight):
-        """Prediction function"""
-        pred = np.dot(x, weight)
-        pred[np.where(pred <= 0)] = -1
-        pred[np.where(pred > 0)] = 1
-        return pred
-
-    def normalequ(self):
-        """ Normal equation to get parameters """
-        tx = self.train_x
-        y = self.train_y
-        if self.regularizer is None:
-            return np.linalg.solve(np.dot(tx.T, tx), np.dot(tx.T, y))
-        elif self.regularizer.name is 'Ridge':
-            G = np.eye(tx.shape[1])
-            G[0, 0] = 0
-            hes = np.dot(tx.T, tx) + self.regularizer_p * G
-            return np.linalg.solve(hes, np.dot(tx.T, y))
-        else:
-            raise NotImplementedError
 
 
 class LogisticRegression(Model):
@@ -410,7 +378,10 @@ class LogisticRegression(Model):
         self.pred_label = [-1, 1]
 
     def __call__(self, x, weight=None):
-        """Define the fit function and get prediction"""
+        """
+        Define the fit function and get prediction,
+        generate probability of occurrence
+        """
         if weight is None:
             weight = self.weights[-1]
         return sigmoid(np.dot(x, weight))
@@ -444,10 +415,10 @@ class LogisticRegression(Model):
         return pred
 
     def train(self, loss_function='logistic',
-              lr=0.1, momentum=0.9, decay=0.5, max_iters=3000, batch_size=128, **kwargs):
-        """ Make the default loss logistic """
+              lr=0.1, decay=0.5, max_iters=3000, batch_size=128, **kwargs):
+        """ Make the default loss logistic, set default parameters """
         return super(LogisticRegression, self).train('sgd', loss_function,
-                                                     lr=lr, momentum=momentum,
+                                                     lr=lr,
                                                      decay=decay, max_iters=max_iters,
                                                      batch_size=batch_size, **kwargs)
 
@@ -455,3 +426,57 @@ class LogisticRegression(Model):
         """ Should never call """
         raise NotImplementedError
 
+
+class LinearRegression(Model):
+    """ Linear regression model
+        This is not fully tested, especially the cross-validation, please refers
+        to the implemenations.py for linear model.
+    """
+
+    def __init__(self, train, validation=None, initial_weight=None,
+                 regularizer=None, regularizer_p=None,
+                 loss_function_name='mse', calculate_weight='normalequ'):
+        # Initialize the super class with given data.
+        super(LinearRegression, self).__init__(train, validation,
+                                               initial_weight=initial_weight,
+                                               loss_function_name=loss_function_name,
+                                               cal_weight=calculate_weight,
+                                               regularizer=regularizer,
+                                               regularizer_p=regularizer_p)
+
+    def __call__(self, x):
+        """ calulate prediction based on latest result """
+        return np.dot(x, self.weights[-1])
+
+    def get_gradient(self, batch_y, batch_x, weight):
+        """ return gradient of linear model, including the regularizer """
+        N = batch_y.shape[0]
+        grad = np.empty(len(weight))
+        for index in range(N):
+            _y = batch_y[index]
+            _x = batch_x[index]
+            grad = grad + gradient_least_square(_y, _x, weight, self.loss_function_name)
+        grad /= N
+        grad += self.regularizer.get_gradient(weight)
+        return grad
+
+    def predict(self, x, weight):
+        """ Prediction function, predicting final result """
+        pred = np.dot(x, weight)
+        pred[np.where(pred <= 0)] = -1
+        pred[np.where(pred > 0)] = 1
+        return pred
+
+    def normalequ(self):
+        """ Normal equation to get parameters """
+        tx = self.train_x
+        y = self.train_y
+        if self.regularizer is None:
+            return np.linalg.solve(np.dot(tx.T, tx), np.dot(tx.T, y))
+        elif self.regularizer.name is 'Ridge':
+            G = np.eye(tx.shape[1])
+            G[0, 0] = 0
+            hes = np.dot(tx.T, tx) + self.regularizer_p * G
+            return np.linalg.solve(hes, np.dot(tx.T, y))
+        else:
+            raise NotImplementedError

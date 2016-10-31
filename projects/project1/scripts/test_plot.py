@@ -1,12 +1,18 @@
+"""
+Test file for plots.py
+Routines to generate specific plots.
+PCA
+Histograms for all data feature
+
+Noted that, it is mainly to separate the matplotlib.pyplot,
+prevent it being called in test.py.
+Make sure your python environment support matplotlib.pyplot
+to use this file.
+"""
 from __future__ import absolute_import
 from projects.project1.scripts.helpers import *
-# from projects.project1.scripts.helpers import *
-# from projects.project1.scripts.learning_model import *
 from projects.project1.scripts.data_utils import *
-from projects.project1.scripts.model import LogisticRegression
-from projects.project1.scripts.network import Network
 from projects.project1.scripts.plots import *
-import os, datetime, sys
 
 
 def test_pca_plot():

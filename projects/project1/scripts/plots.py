@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-"""a function of ploting figures."""
+"""
+This python file contains various of functions to generate plots.
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec

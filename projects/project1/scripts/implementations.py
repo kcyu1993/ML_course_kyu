@@ -1,19 +1,13 @@
 '''
-Python files contains the learning models.
-The whole idea is to have learning model separated from optimizer
-
-How to do this?
-
-Available model listed:
-    least_squares
-    ridge_regression
-    logistic_regression
-    reg_logistic_regression
-
-Available optimizer:
-    GD: gradient descent
-    SGD: stochastic gradient descent
-        Supported more features like, momentum,
+Python file required.
+This file consists of all six method required by the project sheet
+In addition, it contains one method that would generate the best result.
+Note that, you should give RAW data matrix, i.e. in shape of (nb_sample, 30) as
+input to all the methods here.
+All the methods except the logistic_regression_best is aiming to produce the baseline
+statistics. Thus, standardization is the only data manipulation.
+For more information on tests, please refer to test.py, we compose a complex experiment
+phases there.
 '''
 from __future__ import absolute_import
 
@@ -22,13 +16,14 @@ import numpy as np
 from model import *
 from gradient import *
 from costs import *
-from data_utils import compose_complex_features_further
+from data_utils import compose_interactions_for_transforms, standardize
 
 error = 'mse'
 
 
 def least_squares(y, tx):
     """calculate the least squares solution."""
+    tx, _, _ = standardize(tx)
     A = np.dot(tx.T, tx)
     b = np.dot(tx.T, y)
     # Compute solution
@@ -43,9 +38,9 @@ def least_squares(y, tx):
 def least_squares_GD(y, tx, gamma, max_iters):
     """Gradient descent algorithm."""
     # Initialisation
+    tx, _, _ = standardize(tx)
     D = tx.shape[1]  # number of features
-    initial_w = np.zeros([D, 1])
-
+    initial_w = np.zeros((D,))
     # Start gradient descent.
     start_time = datetime.datetime.now()
     gradient_losses, ws = gradient_descent(y, tx, initial_w, gamma, max_iters)
@@ -62,8 +57,9 @@ def least_squares_GD(y, tx, gamma, max_iters):
 def least_squares_SGD(y, tx, gamma, max_iters):
     """Gradient descent algorithm."""
     # Initialisation
+    tx, _, _ = standardize(tx)
     D = tx.shape[1]  # number of features
-    initial_w = np.zeros([D, 1])
+    initial_w = np.zeros((D,))
     batch_size = 1
     # Start SGD.
     start_time = datetime.datetime.now()
@@ -79,10 +75,10 @@ def least_squares_SGD(y, tx, gamma, max_iters):
 
 def ridge_regression(y, tx, lamb):
     """implement ridge regression."""
+    tx, _, _ = standardize(tx)
 
     D = tx.shape[1]  # number of features
     N = len(y)  # Number of measurements
-
     A = np.dot(tx.T, tx) + 2 * N * lamb * np.eye(D)
     b = np.dot(tx.T, y)
 
@@ -98,12 +94,14 @@ def ridge_regression(y, tx, lamb):
 
 def logistic_regression(y, tx, gamma, max_iters):
     """ Logistic regression basic version """
+    tx, _, _ = standardize(tx)
     model = LogisticRegression((tx, y))
     return model.train(lr=gamma, decay=1, max_iters=max_iters)
 
 
 def reg_logistic_regression(y, tx, lambda_, gamma, max_iters):
     """ L2 reg logistic basic version """
+    tx, _, _ = standardize(tx)
     model = LogisticRegression((tx, y), regularizer="Ridge", regularizer_p=lambda_)
     return model.train(lr=gamma, decay=1, max_iters=max_iters)
 
@@ -118,19 +116,35 @@ def lasso_logistic_regression(y, tx, lambda_, gamma, max_iters):
     :param max_iters:   maximum iterations
     :return:
     """
+    tx, _, _ = standardize(tx)
     model = LogisticRegression((tx, y), regularizer="Lasso", regularizer_p=lambda_)
     return model.train(lr=gamma, decay=1, max_iters=max_iters)
 
 
-def logistic_regression_best(y, tx, lambda_, gamma, max_iters):
+def logistic_regression_best(y, tx, lambda_=0.1, gamma=0.01, max_iters=2000):
     """
     Implement the best logistic regression.
-    :param y:
-    :param tx:
-    :param lambda_:
-    :param gamma:
-    :param max_iters:
+    This function would process the data according to our best result.
+    Hyper-parameters:
+        decay=0.5, decay interval = 100, early_stop = 1000, batch_size=128,
+    :param y:       raw data prediction [250000,]
+    :param tx:      raw data matrix [250000, 30]
+    :param lambda_: lambda = 0.1
+    :param gamma:   gamma = 0.01 for step size
+    :param max_iters: 2000
     :return:
     """
-    model = LogisticRegression((tx, y), regularizer="Lasso", regularizer_p=lambda_)
-    return model.train(lr=gamma, decay=1, max_iters=max_iters)
+
+    tx = compose_interactions_for_transforms(tx)
+    model = LogisticRegression((tx, y), regularizer="Ridge", regularizer_p=lambda_)
+    return model.train(lr=gamma, decay=0.5, max_iters=max_iters, early_stop=1000, decay_intval=100)
+
+
+def compose_best_submission_feature(tx):
+    """
+    This is to be called if you want to repreduce the feature of our best submission
+    :param tx: raw data matrix
+    :return:
+    """
+    data, _, _ = compose_interactions_for_transforms(tx)
+    return data

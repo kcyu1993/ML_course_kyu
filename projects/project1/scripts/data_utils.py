@@ -1,10 +1,42 @@
 import numpy as np
 
-""" Data cleaning class """
+"""
+This is a python file containing all the data manipulation methods.
+There are 3 categories of these methods, data cleaning, transformation and
+data space composition.
 
+Complete list for data cleaning:
+    batch_iter
+    build_poly
+    split_data
+    split_data_general
+    split_train_valid
+    build_k_indices
+    standardize
+    draw_balanced_subsample
+    fill_missing
+    remove_outliers
+    remove_dimensions
 
-def calculate_valid_mean(x, outlier):
-    raise NotImplementedError
+List for transformation
+    pca_transform
+    sqrt_transform
+    interactions
+    log_transform
+    polynomial_transform
+    categorical
+    box_cox
+
+List for generating data space, combining the previous method together
+    compose_interactions_for_transforms
+    compose_complex_features
+    compose_complex_features_further
+    baseline_logistic
+    interactions_logistic
+    pca_interactions_logistic
+
+Data cleaning class
+"""
 
 
 def batch_iter(y, tx, batch_size, num_batches=None, shuffle=True):
@@ -72,6 +104,14 @@ def split_data(x, y, ratio, seed=1):
 
 
 def split_data_general(*args, ratio=[0.5], seed=1):
+    """
+    Split data with given arguments.
+    Each arg in args should be a nparray.
+    :param args: list of nparray
+    :param ratio: list of ratio, should fall in [0,1]
+    :param seed:  random seed
+    :return:      ( (x1_1, x2_1, x3_1,  ...), (x1_2 ... ))
+    """
     np.random.seed(seed=seed)
     split_pos = [int(r * len(args[0])) for r in ratio]
     index = np.random.permutation(range(len(args[0])))
@@ -330,6 +370,7 @@ def polynomial_tranform(data, degrees=[2], indices=None):
 def categorical(data):
     """
     Create categorical data via one-hot coding.
+    Note: hard-coded for feature index 22.
     :param data: data column
     :return: 4 coding
     """
@@ -341,11 +382,12 @@ def categorical(data):
 
 def compose_interactions_for_transforms(data):
     """
-    Build the final model for submission
+    Build the final model for submission, and obtained the best result.
+    Remove the log transformation to improve further.
     :param data:
     :return:
     """
-    log_indices = [1, 3, 4, 5, 8, 9, 10, 13, 16, 19, 21, 23, 26, 29]
+    # log_indices = [1, 3, 4, 5, 8, 9, 10, 13, 16, 19, 21, 23, 26, 29]
     # miss_indices = [12, 26, 27, 28]
 
     mean_fill = fill_missing(data)
@@ -354,26 +396,27 @@ def compose_interactions_for_transforms(data):
     valid_data = categorical(data[:, 22])
 
     # Log transform them
-    log_data = log_transform(mean_fill, log_indices)
+    # log_data = log_transform(mean_fill, log_indices)
 
     # Delete original missing over 75% and log transformed data.
-    _mean_fill = np.delete(mean_fill, log_indices + [22], axis=1)
+    _mean_fill = np.delete(mean_fill, [22], axis=1)
     _mean_fill, _, _ = standardize(_mean_fill, intercept=False)
 
     # Build polynomial up to 3
-    log_data = np.c_[log_data, _mean_fill]
-    poly = polynomial_tranform(log_data, degrees=[2])
+    # log_data = np.c_[log_data, _mean_fill]
+    poly = polynomial_tranform(_mean_fill, degrees=[2])
 
     # PCA
-    _, data_pca = pca_transform(mean_fill, nbNewColumn=10, concatenate=False)
+    # _, data_pca = pca_transform(mean_fill, nbNewColumn=10, concatenate=False)
 
     # interactions of data and polynomial up to 3
-    prepare_inter = np.c_[log_data, poly]
+    prepare_inter = np.c_[_mean_fill, poly]
     inter_data = interactions(prepare_inter)
 
-    valid_data = np.c_[valid_data, _mean_fill, poly, inter_data, data_pca]
+    valid_data = np.c_[valid_data, _mean_fill, poly, inter_data]
     valid_data, _, _ = standardize(valid_data, intercept=False)
     return valid_data
+
 
 def compose_complex_features_further(data, interaction=False, log=False,
                                      sqrt=False, intercept=True, pca=False,
@@ -401,10 +444,8 @@ def compose_complex_features_further(data, interaction=False, log=False,
     # valid_data = _valid_data #copy
 
     mean_fill = fill_missing(data)
-    # Delete the complete useless part.
-    _mean_fill = np.delete(mean_fill, [4, 5, 6, 12, 26, 27, 28], axis=1)
-    valid_data = _mean_fill
-    mean_fill = _mean_fill
+
+    valid_data = mean_fill
     if standardize_first:
         mean_fill, _, _ = standardize(mean_fill, intercept=False)
     # valid_data = mean_fill[:,0:10]
@@ -427,7 +468,7 @@ def compose_complex_features_further(data, interaction=False, log=False,
         valid_data = np.c_[valid_data, data_sqrt]
 
     if pca:
-        _, data_pca = pca_transform(data, nbNewColumn=10, concatenate=False, **kwargs)
+        _, data_pca = pca_transform(data, concatenate=False, **kwargs)
         valid_data = np.c_[valid_data, data_pca]
 
     valid_data, _, _ = standardize(valid_data)
@@ -520,7 +561,7 @@ def interactions_logistic(data):
 
 def pca_interactions_logistics(data):
     """
-
+    Interactions, pca with data
     :param data:
     :return:
     """

@@ -394,6 +394,10 @@ def test_baseline():
     logistic = LogisticRegression((y, data))
     weight = logistic.train(lr=0.01, decay=1)
 
+    plot = True
+    if plot:
+        from plots import cross_validation_visualization
+
     _, test_x, test_ids = load_test_data(clean=False)
     t_data = baseline_logistic(test_x)
     pred_label = predict_labels(weight, t_data)
@@ -401,7 +405,7 @@ def test_baseline():
 
 
 def test_data_model():
-    title = 'complex_full_sqrt-pca-power-log-interactions'
+    title = 'complex_full_before_ddl'
     print("Base line testing for model " + title)
     b_time = datetime.datetime.now()
     print('Beginning reading data')
@@ -425,26 +429,32 @@ def test_data_model():
 
 
     # Increase further
-    # log, sqrt, power=2,3, pca, interaction(all 19 valid)
+    # log, sqrt, power=2-9, pca, interaction(all 19 valid)
     # Test complex with multiple terms
-    # dimension 249
-    data, _, _ = compose_complex_features_further(tX, intercept=True,
-                                                  interaction=True,
-                                                  log=True,
-                                                  sqrt=True,
-                                                  power=True,
-                                                  pca=True)
+    # dimension more than 249
+    # data, _, _ = compose_complex_features_further(tX, intercept=True,
+    #                                               interaction=True,
+    #                                               log=True,
+    #                                               sqrt=True,
+    #                                               power=True,
+    #                                               pca=True)
+    #
+    # t_data, _, _ = compose_complex_features_further(test_x, intercept=True,
+    #                                                 interaction=True,
+    #                                                 log=True,
+    #                                                 sqrt=True,
+    #                                                 power=True,
+    #                                                 pca=True)
 
-    t_data, _, _ = compose_complex_features_further(test_x, intercept=True,
-                                                    interaction=True,
-                                                    log=True,
-                                                    sqrt=True,
-                                                    power=True,
-                                                    pca=True)
+    # Increase finally
+    # log tranform, categorical, poly
+
+    data = compose_interactions_for_transforms(tX)
+    t_data = compose_interactions_for_transforms(test_x)
 
     # Test 1 Ridge 0.1
-    logistic = LogisticRegression((y, data), regularizer='Ridge', regularizer_p=0.1)
-    weight = logistic.train(lr=0.01, decay=0.5, max_iters=2000, early_stop=1000)
+    logistic = LogisticRegression((y, data), regularizer='Ridge', regularizer_p=0.2)
+    weight = logistic.train(lr=0.1, decay=0.5, max_iters=2000, early_stop=1000)
     # weight, _, _ = logistic.cross_validation(4, [0.1, 0.5, 0.05], 'regularizer_p', max_iters=2000)
     pred_label = predict_labels(weight, t_data)
     create_csv_submission(test_ids, pred_label, get_dataset_dir() +
@@ -467,63 +477,6 @@ def test_data_model():
                           '/submission/removed_outlier_{}.csv'.format(title))
 
 
-def test_cross_valid():
-    title = 'complex_ridge-crossvalid'
-    print("Base line testing for model " + title)
-    b_time = datetime.datetime.now()
-    print('Beginning reading data')
-    DATA_TRAIN_PATH = get_filepath('train')
-    y, tX, ids = load_csv_data(DATA_TRAIN_PATH)
-    print("Finish loading in {s} seconds".
-          format(s=(datetime.datetime.now() - b_time).total_seconds()))
-    _, test_x, test_ids = load_test_data(clean=False)
-
-    """ ### MODIFY TO TEST """
-    # To be confirmed 0.74
-    # data = interactions_logistic(tX)
-    # t_data = interactions_logistic(test_x)
-
-    # 0.70 around (test via PCA selection)
-    # data = potential_best(tX)
-    # t_data = potential_best(test_x)
-
-    # Increase further
-    data, _, _ = compose_complex_features_further(tX, intercept=True,
-                                                  interaction=True,
-                                                  log=True,
-                                                  sqrt=False,
-                                                  pca=True)
-    t_data, _, _ = compose_complex_features_further(test_x, intercept=True,
-                                                    interaction=True,
-                                                    log=True,
-                                                    sqrt=False,
-                                                    pca=True)
-
-    logistic = LogisticRegression((y, data), regularizer='Ridge', regularizer_p=0.1)
-    # lambdas = np.logspace(0.001, 0.5, 10)
-    lambdas = [0.01, 0.1, 0.5]
-    weight, _, (err_tr, err_te) = logistic.cross_validation(4, lambdas, 'regularizer_p', max_iters=20, plot=True)
-
-    print('trainerr ', err_tr)
-    print('validerr', err_te)
-    plot = True
-    if plot:
-        from projects.project1.scripts.plots import bias_variance_decomposition_visualization
-        bias_variance_decomposition_visualization(lambdas, err_tr, err_te)
-
-
-        # y_pred = []
-        # for w in weight:
-        #     _y_pred = logistic.__call__(t_data, w)
-        #     y_pred.append(_y_pred)
-        # y_pred = np.average(y_pred, axis=0)
-        # y_pred[np.where(y_pred <= 0.5)] = -1
-        # y_pred[np.where(y_pred > 0.5)] = 1
-        # output_path = get_dataset_dir() + \
-        #               '/submission/cross_valid_{}_{}.csv'.format(title,
-        #                   datetime.datetime.now().__str__())
-        # # create_csv_submission(test_ids, y_pred, output_path)
-        # print(losses)
 
 
 if __name__ == '__main__':

@@ -18,8 +18,8 @@ Available optimizer:
 from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 import numpy as np
-from .gradient import *
-from .costs import *
+from gradient import *
+from costs import *
 from data_utils import batch_iter
 
 error = 'mse'

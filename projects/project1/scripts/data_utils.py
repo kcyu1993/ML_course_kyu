@@ -274,6 +274,8 @@ def sqrt_transform(data, indices=[3, 2, 0], method='abs', **kwargs):
     else:
         sqrt_transform = lambda x: np.sqrt(x)
 
+    # indices = range(data.shape[1])
+
     sqrt_data = data[:, indices]
     for i in range(len(indices)):
         sqrt_data[i] = sqrt_transform(sqrt_data[i])
@@ -297,6 +299,8 @@ def log_transform(data, indices=[1, 3, 8, 9, 10, 13], method='shiftmin', **kwarg
         log_transform = lambda x: np.log(np.abs(x))
     else:
         log_transform = lambda x: np.log(x)
+
+    # indices = range(data.shape[1])
 
     log_data = data[:, indices]
     for i in range(len(indices)):
@@ -322,6 +326,53 @@ def polynomial_tranform(data, degrees=[2], indices=None):
         result = np.c_[result, np.power(power_data, degree)]
     return result[:, len(power_data[0]):]
 
+
+def categorical(data):
+    """
+    Create categorical data via one-hot coding.
+    :param data: data column
+    :return: 4 coding
+    """
+    cat = np.zeros((data.shape[0], 4))
+    for i in range(len(cat)):
+        cat[i][int(data[i])] = 1
+    return cat
+
+
+def compose_interactions_for_transforms(data):
+    """
+    Build the final model for submission
+    :param data:
+    :return:
+    """
+    log_indices = [1, 3, 8, 9, 10, 13]
+    miss_indices = [4, 5, 6, 12, 26, 27, 28, 22]
+
+    mean_fill = fill_missing(data)
+
+    # Clean the categorical data 22
+    valid_data = categorical(data[:, 22])
+
+    # Log transform them
+    log_data = log_transform(mean_fill, log_indices)
+
+    # Delete original missing over 75% and log transformed data.
+    _mean_fill = np.delete(mean_fill, log_indices + miss_indices, axis=1)
+    _mean_fill, _, _ = standardize(_mean_fill, intercept=False)
+
+    # Build polynomial up to 3
+    poly = polynomial_tranform(_mean_fill, degrees=[2])
+
+    # PCA
+    _, data_pca = pca_transform(mean_fill, nbNewColumn=10, concatenate=False)
+
+    # interactions of data and polynomial up to 3
+    prepare_inter = np.c_[_mean_fill, log_data, poly]
+    inter_data = interactions(prepare_inter)
+
+    valid_data = np.c_[valid_data, _mean_fill, poly, inter_data, data_pca]
+    valid_data, _, _ = standardize(valid_data, intercept=False)
+    return valid_data
 
 def compose_complex_features_further(data, interaction=False, log=False,
                                      sqrt=False, intercept=True, pca=False,
@@ -352,6 +403,7 @@ def compose_complex_features_further(data, interaction=False, log=False,
     # Delete the complete useless part.
     _mean_fill = np.delete(mean_fill, [4, 5, 6, 12, 26, 27, 28], axis=1)
     valid_data = _mean_fill
+    mean_fill = _mean_fill
     if standardize_first:
         mean_fill, _, _ = standardize(mean_fill, intercept=False)
     # valid_data = mean_fill[:,0:10]

@@ -26,6 +26,36 @@
   writing skills.
 \end{abstract}
 
+\section{Results}
+\subsection{Logistic regression}
+For all the settings, we test them with 3 logistic model, original logistic regression, with L1 norm penalized term and L2 norm penalized term. 
+For most of the test, we only compute local test result by spliting train.csv into training and validation batch, the same rationale behind cross-validation. And once good prediction result is achieved, we train the model on whole training data-set, generate predictions and push to the server. 
+
+One interesting fact is, for all the scenario listed below, the L1 norm is the best, followed by L2 norm, and no penalized term would encounter over-fitting on train dataset. For the two penalized version, local training mis-classification is usually only 1 - 2 percent lower than the testing value on Kaggle server. 
+
+Based on our PCA plot, there exists differences between train and test data. So the cross-validation method could only simulate the potential plot, because it is not possible to have detailed graph under real test set. This limiation would prevent us fully examine the reason behind our differences. 
+
+We use two metrics to evaluate our result. 
+Truncate to first 10000 samples as quick experiment set. Because of the randomness and the ratio of positive to negative is similar.
+Testing with the feature reduction methods described in section 2. 
+For PCA, we select the significant PC vector 1 to 5, transformed and got 0.70, which is worse than the baseline. 
+Testing with feature expansion \newline
+Interactions: \newline
+We compose interactions of significant variable based on PCA selection, index 0 - 10. Result an improvement of 2 percent of baseline result 0.76.
+We then compose interactions of all valid variables, gave another improvement of 2 percent, 0.78. 
+
+Transformation:
+We tried log transformed askew data to restore the bell-shape, use square root of absolute value to further enrich our features. This further improve our result by 0.1, 0.79
+
+Polynomial degree: up to 5
+Improve 1 percent, to 0.80
+
+All above methods is to incrementally increase the feature dimension, and our model could still handle the complexity. We designed a more complicated case, which consists of all interactions of 30 variables, polynomial of all variable up to degree 9, log and square root transform remains the same. The final model has accuracy 0.817. 
+
+It is reasonable because logistic regression with penalized term intrinscly select the parameters. By examining the final weight, the ratio of largest to smallest is over 1e5. 
+
+
+
 \section{Introduction}
 
 The aim of writing a paper is to infect the mind of your reader with

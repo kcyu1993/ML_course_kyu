@@ -2,14 +2,20 @@
 """some helper functions for project 1."""
 import csv
 import numpy as np
-from projects.project1.scripts.data_utils import remove_outlier, fill_missing
-import os, sys
-from data_utils import standardize, split_data_general
+import os
+import sys
+import datetime
+from data_utils import standardize, split_data_general, remove_outlier, fill_missing
 
 train_filename = 'reduced_train.csv'
 test_filename = 'reduced_test.csv'
+
 # train_filename = 'train.csv'
 # test_filename = 'test.csv'
+
+reduce_train_filename = 'reduced_train.csv'
+reduce_test_filename = 'reduced_test.csv'
+
 # train_filename = 'mean_fill_train.csv'
 # test_filename = 'mean_fill_test.csv'
 
@@ -57,13 +63,26 @@ def get_filepath(file='train'):
         return os.path.join(get_dataset_dir(), train_filename)
     elif file is 'test':
         return os.path.join(get_dataset_dir(), test_filename)
+    elif file is 'reduced_train':
+        return os.path.join(get_dataset_dir(), reduce_train_filename)
+    elif file is 'reduced_test':
+        return os.path.join(get_dataset_dir(), reduce_test_filename)
     else:
         raise NotImplementedError
 
 
+def save_numpy_array(*args, path='plot', names=[], title=''):
+    """ Save numpy array """
+    if path is 'plot':
+        path = get_plot_path('nparray/')
+
+    for name, arr in zip(names, args):
+        np.save(path + '_' + title + name, arr)
+
+
 def load_train_data(sub_sample=False, clean=True, original_y=False, validation=False):
     """
-    wrapper for loading trainign data sample
+    wrapper for loading training data sample
     :param sub_sample:      subsample flag
     :param clean:           clean with mean-filled
     :param original_y:      return original y label

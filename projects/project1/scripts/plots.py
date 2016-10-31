@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from projects.project1.scripts.helpers import get_plot_path
+from helpers import get_plot_path
 
 """ Lab 3 """
 
@@ -19,7 +19,8 @@ def plot_fitted_curve(y, x, weights, ax):
     ax.set_title("Fitted curve for x y")
 
 
-def plot_train_test(train_errors, test_errors, lambdas, filename=''):
+def plot_train_test(train_errors, test_errors, names=['', ''], xlabel='', ylabel='',
+                    lambdas=None, filename=''):
     """
     train_errors, test_errors and lambas should be list (of the same size) the respective train error and test error for a given lambda,
     * lambda[0] = 1
@@ -28,13 +29,14 @@ def plot_train_test(train_errors, test_errors, lambdas, filename=''):
 
     degree is just used for the title of the plot.
     """
-    plt.semilogx(lambdas, train_errors, color='b', marker='*', label="Train error")
-    plt.semilogx(lambdas, test_errors, color='r', marker='*', label="Test error")
-    plt.xlabel("lambda")
-    plt.ylabel("RMSE")
-    plt.title(filename + " train-test RMSE curve")
+    plt.semilogx(lambdas, train_errors, color='b', marker='*', label=names[0])
+    plt.semilogx(lambdas, test_errors, color='r', marker='*', label=names[1])
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(filename)
     leg = plt.legend(loc=1, shadow=True)
     leg.draw_frame(False)
+    plt.show()
     plt.savefig(get_plot_path("train_test " + filename))
 
 

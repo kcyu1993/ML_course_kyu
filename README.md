@@ -46,9 +46,6 @@ best_weights, best_lambda, (err_tr, err_te) = \
                              max_iters=6000, early_stop=1000,
                              plot=True)
 
-
-
-
 # load test.csv as test_data, test_ids
 y_pred = []
 for w in weights:

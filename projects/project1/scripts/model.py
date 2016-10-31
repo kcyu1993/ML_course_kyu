@@ -1,15 +1,10 @@
 from __future__ import absolute_import
-from abc import ABCMeta, abstractmethod
-import numpy as np
+
 import copy
-from gradient import *
-from costs import *
-from data_utils import batch_iter, build_k_indices
+from data_utils import build_k_indices
 from learning_model import *
 from regularizer import *
-
-from scipy.stats.mstats import normaltest
-
+from helpers import save_numpy_array
 
 class Model(object):
     """
@@ -273,6 +268,8 @@ class Model(object):
             from plots import cross_validation_visualization
             cross_validation_visualization(lambdas, err_tr, err_te, title=lambda_name,
                                            error_name=self.loss_function_name)
+        else:
+            save_numpy_array(lambdas, err_tr, err_te, names=['lambda', 'err_tr', 'err_te'], title=self.regularizer.name)
 
         return weights[min_err_te], lambdas[min_err_te], (err_tr, err_te)
 
@@ -446,10 +443,10 @@ class LogisticRegression(Model):
         pred[np.where(pred == 1)] = predict_label[1]
         return pred
 
-    def train(self, cross_valid=0, loss_function='logistic',
+    def train(self, loss_function='logistic',
               lr=0.1, momentum=0.9, decay=0.5, max_iters=3000, batch_size=128, **kwargs):
         """ Make the default loss logistic """
-        return super(LogisticRegression, self).train('sgd', cross_valid, loss_function,
+        return super(LogisticRegression, self).train('sgd', loss_function,
                                                      lr=lr, momentum=momentum,
                                                      decay=decay, max_iters=max_iters,
                                                      batch_size=batch_size, **kwargs)

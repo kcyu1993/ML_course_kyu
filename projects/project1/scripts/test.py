@@ -2,7 +2,13 @@
 This python file contains every test case based on our logistic
 regression model.
 The best selected model is put inside the implementations.py
-You could skip this class.
+You could skip this class, if you want to run one of the method,
+change the last __main__ method.
+We provide you a sample run, you could directly run this in your 
+terminal.
+
+python \path\to\test.py 
+
 """
 
 from __future__ import absolute_import
@@ -11,6 +17,7 @@ from helpers import *
 from implementations import *
 from model import LogisticRegression
 import os, datetime
+
 
 
 def test_lsq_sgd_with_cleand_data():
@@ -192,6 +199,9 @@ def test_complex():
 
 
 def test_draw():
+    """
+    Draw balanced sample, but result worse result.
+    """
     b_time = datetime.datetime.now()
     print('Begining reading data')
     DATA_TRAIN_PATH = get_filepath('train')
@@ -398,39 +408,6 @@ def test_data_model():
           format(s=(datetime.datetime.now() - b_time).total_seconds()))
     _, test_x, test_ids = load_test_data(clean=False)
 
-    """ ### MODIFY TO TEST """
-    # To be confirmed 0.74
-    # data = interactions_logistic(tX)
-    # t_data = interactions_logistic(test_x)
-
-    # 0.70 around (test via PCA selection)
-    # data = potential_best(tX)
-    # t_data = potential_best(test_x)
-
-    # Increase further
-    # 0.78 log, pca, interaction = true. Ridge 0.5
-
-
-    # Increase further
-    # log, sqrt, power=2-9, pca, interaction(all 19 valid)
-    # Test complex with multiple terms
-    # dimension more than 249
-    # data, _, _ = compose_complex_features_further(tX, intercept=True,
-    #                                               interaction=True,
-    #                                               log=True,
-    #                                               sqrt=True,
-    #                                               power=True,
-    #                                               pca=True)
-    #
-    # t_data, _, _ = compose_complex_features_further(test_x, intercept=True,
-    #                                                 interaction=True,
-    #                                                 log=True,
-    #                                                 sqrt=True,
-    #                                                 power=True,
-    #                                                 pca=True)
-
-    # Increase finally
-    # log tranform, categorical, poly
 
     data = compose_interactions_for_transforms(tX)
     t_data = compose_interactions_for_transforms(test_x)
@@ -498,23 +475,21 @@ def test_implementations():
     create_csv_submission(test_ids, pred_label, get_dataset_dir() +
                           '/submission/{}.csv'.format(title + 'Ridge_regression'))
 
+
 if __name__ == '__main__':
     # test_box_cos()
     # test_normal()
     # sys.stdout = Logger(get_plot_path("log/test_k_fold.log"))
     # test_pca_logistic2()
-    truncate_csv(10000)
-    # test_complex()
+    # truncate_csv(10000)
+    test_complex()
     # test_draw()
     # test_final()
     # test_logistic()
     # test_baseline()
-    test_data_model()
     # test_data_model()
     # test_cross_valid()
     # test_implementations()
     # test_k_fold_logistic()
     # clean_save_data_with_filling(train_filename)
     # clean_save_data_with_filling(test_filename)
-
-    # test_Network()

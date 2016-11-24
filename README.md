@@ -1,6 +1,6 @@
-# EPFL Machine Learning Course CS-433 Project 1 
+# EPFL Machine Learning Course CS-433 Project 1 Find Higgs
 Machine Learning Course, Fall 2016 (a.k.a. PCML)
-Kaicheng-Yu's version, Group #2
+Kaicheng Yu, Luca Fabietti, Sina Fakheri, Group #2
 
 This README file is for explanation of python code written for the
 first project. Note that the structure of folders should be strictly 
